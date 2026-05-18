@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhoenixMMS — Material Management System</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0ede8; color: #1a1a1a; font-size: 14px; min-height: 100vh; }
+
+
+/* ── PASSWORD SCREEN ── */
+#password-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+
+/* ── CONFIG SCREEN ── */
+#config-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+.config-card { background:white; border-radius:14px; padding:36px 40px; max-width:520px; width:100%; box-shadow:0 4px 24px rgba(0,0,0,0.08); }
+.config-logo { display:flex; align-items:center; gap:12px; margin-bottom:28px; }
+.config-logo-icon { width:40px; height:40px; background:#0F6E56; border-radius:10px; display:flex; align-items:center; justify-content:center; }
+.config-logo-icon svg { width:22px; height:22px; fill:white; }
+.config-logo-title { font-size:20px; font-weight:600; }
+.config-logo-sub { font-size:13px; color:#888; }
+.config-card h2 { font-size:15px; font-weight:500; margin-bottom:6px; }
+.config-card p { font-size:13px; color:#666; line-height:1.6; margin-bottom:20px; }
+.config-steps { background:#f7f5f0; border-radius:8px; padding:16px 18px; margin-bottom:22px; }
+.config-steps ol { padding-left:18px; font-size:13px; color:#555; line-height:2; }
+.config-steps ol li { padding-left:4px; }
+.config-steps code { background:#e8e4dc; padding:1px 5px; border-radius:3px; font-family:monospace; font-size:12px; color:#333; }
+.config-input-group { margin-bottom:16px; }
+.config-input-group label { display:block; font-size:12px; font-weight:500; color:#666; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; }
+.config-input-group input { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:7px; font-size:13px; }
+.config-input-group input:focus { outline:none; border-color:#0F6E56; }
+.config-btn { width:100%; padding:11px; background:#0F6E56; color:white; border:none; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; }
+.config-btn:hover { background:#1D9E75; }
+.config-btn:disabled { background:#aaa; cursor:not-allowed; }
+
+/* ── MAIN APP ── */
+#app { display:none; flex-direction:column; min-height:100vh; }
+.nav { background:#0F6E56; color:white; padding:0 20px; display:flex; align-items:center; gap:0; flex-wrap:wrap; }
+.nav-brand { font-size:15px; font-weight:600; letter-spacing:0.03em; padding:14px 0; margin-right:24px; white-space:nowrap; }
+.nav-brand span { opacity:0.6; font-weight:400; }
+.nav-tab { padding:14px 14px; cursor:pointer; font-size:13px; opacity:0.75; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.15s; white-space:nowrap; }
+.nav-tab:hover { opacity:1; }
+.nav-tab.active { opacity:1; border-bottom-color:#5DCAA5; font-weight:500; }
+.nav-right { margin-left:auto; display:flex; align-items:center; gap:12px; padding:8px 0; }
+.nav-status { font-size:11px; opacity:0.7; }
+.nav-refresh { background:rgba(255,255,255,0.15); border:none; color:white; padding:6px 12px; border-radius:5px; font-size:12px; cursor:pointer; }
+.nav-refresh:hover { background:rgba(255,255,255,0.25); }
+
+.content { padding:20px; flex:1; }
+.card { background:white; border:0.5px solid rgba(0,0,0,0.1); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+.card-title { font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; color:#888; margin-bottom:14px; }
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.metric { background:#f7f5f0; border-radius:8px; padding:14px 16px; }
+.metric-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+.metric-val { font-size:26px; font-weight:500; line-height:1; }
+.metric-sub { font-size:11px; margin-top:4px; color:#888; }
+.metric.c-teal .metric-val { color:#0F6E56; }
+.metric.c-amber .metric-val { color:#BA7517; }
+.metric.c-blue .metric-val { color:#185FA5; }
+.metric.c-green .metric-val { color:#3B6D11; }
+.badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:500; }
+.badge-pending  { background:#FAEEDA; color:#BA7517; }
+.badge-partial  { background:#E6F1FB; color:#185FA5; }
+.badge-partial_received { background:#FAEEDA; color:#BA7517; }
+.badge-partial_issued { background:#EEEDFE; color:#534AB7; }
+.badge-received { background:#E1F5EE; color:#0F6E56; }
+.badge-putaway  { background:#EAF3DE; color:#3B6D11; }
+.badge-issued   { background:#EEEDFE; color:#534AB7; }
+.badge-complete { background:#EAF3DE; color:#3B6D11; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:8px 10px; font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:0.05em; color:#888; border-bottom:1px solid rgba(0,0,0,0.1); }
+td { padding:9px 10px; border-bottom:0.5px solid rgba(0,0,0,0.06); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:#f9f8f5; }
+.progress-bar { height:6px; background:rgba(0,0,0,0.08); border-radius:3px; overflow:hidden; }
+.progress-fill { height:100%; border-radius:3px; background:#0F6E56; transition:width 0.3s; }
+.timeline { list-style:none; }
+.timeline li { display:flex; gap:12px; padding:8px 0; border-bottom:0.5px solid rgba(0,0,0,0.06); font-size:12px; }
+.timeline li:last-child { border-bottom:none; }
+.tl-dot { width:8px; height:8px; border-radius:50%; margin-top:3px; flex-shrink:0; }
+.tl-date { color:#888; font-size:11px; min-width:80px; }
+.tl-text { flex:1; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+.form-row.cols-3 { grid-template-columns:1fr 1fr 1fr; }
+.form-row.cols-4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+.form-group { display:flex; flex-direction:column; gap:4px; }
+label { font-size:12px; font-weight:500; color:#666; }
+input, select, textarea { font-size:13px; padding:7px 10px; border:1px solid #ddd; border-radius:6px; background:white; color:#1a1a1a; width:100%; }
+input:focus, select:focus { outline:none; border-color:#0F6E56; }
+.btn { padding:8px 16px; border-radius:6px; border:none; cursor:pointer; font-size:13px; font-weight:500; transition:all 0.15s; }
+.btn-primary   { background:#0F6E56; color:white; }
+.btn-primary:hover { background:#1D9E75; }
+.btn-secondary { background:transparent; border:1px solid #ddd; color:#333; }
+.btn-secondary:hover { background:#f5f5f5; }
+.btn-sm { padding:4px 10px; font-size:12px; }
+.btn-amber { background:#BA7517; color:white; }
+.btn-blue  { background:#185FA5; color:white; }
+.btn-green { background:#3B6D11; color:white; }
+.btn:disabled { opacity:0.5; cursor:not-allowed; }
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.section-title { font-size:15px; font-weight:500; }
+.search-bar { padding:7px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:220px; }
+.alert { padding:10px 14px; border-radius:6px; font-size:13px; margin-bottom:12px; }
+.alert-success { background:#EAF3DE; color:#3B6D11; border-left:3px solid #3B6D11; }
+.alert-error   { background:#FCEBEB; color:#A32D2D; border-left:3px solid #A32D2D; }
+.alert-info    { background:#E6F1FB; color:#185FA5; border-left:3px solid #185FA5; }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:1000; }
+.modal { background:white; border-radius:12px; padding:24px; width:600px; max-width:95vw; max-height:88vh; overflow-y:auto; }
+.modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.modal-title { font-size:16px; font-weight:500; }
+.close-btn { background:none; border:none; cursor:pointer; font-size:22px; color:#888; line-height:1; }
+.empty-state { text-align:center; padding:40px; color:#aaa; font-size:13px; }
+.tag { display:inline-block; background:#f0ede8; color:#666; padding:2px 6px; border-radius:3px; font-size:11px; margin-right:4px; }
+.qty-detail { font-size:11px; color:#888; }
+.row-actions { display:flex; gap:6px; }
+.spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:300px; gap:12px; color:#888; font-size:14px; }
+.loading-screen .spinner { border-color:rgba(15,110,86,0.2); border-top-color:#0F6E56; width:28px; height:28px; border-width:3px; }
+.info-box { background:#E6F1FB; border-left:3px solid #185FA5; border-radius:0 6px 6px 0; padding:10px 14px; font-size:13px; color:#185FA5; margin-bottom:14px; line-height:1.5; }
+
+@media print {
+  .nav, .nav-tab, .nav-right, #alert-bar, .no-print { display:none !important; }
+  .card { box-shadow:none !important; border:1px solid #ddd !important; }
+  body { background:white !important; }
+  .print-header { display:block !important; }
+  table { page-break-inside:auto; }
+  tr { page-break-inside:avoid; }
+}
+.print-header { display:none; }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0ede8;padding:20px">
+  <div style="background:white;border-radius:14px;padding:36px 40px;max-width:480px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+    <div style="background:#0F6E56;border-radius:10px;padding:20px 24px;margin-bottom:24px">
+      <div style="font-size:22px;font-weight:700;color:white">PhoenixMMS</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">Material Management System</div>
+    </div>
+    <div id="pw-step">
+      <div style="font-size:13px;color:#666;margin-bottom:16px">Enter your password to continue.</div>
+      <input type="password" id="pw-input" placeholder="Password" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;margin-bottom:10px;box-sizing:border-box">
+      <div id="pw-error" style="color:#A32D2D;font-size:12px;margin-bottom:10px;display:none">Incorrect password.</div>
+      <button id="pw-btn" style="width:100%;padding:11px;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer">Unlock</button>
+    </div>
+    <div id="url-step" style="display:none">
+      <div style="font-size:13px;color:#666;margin-bottom:16px">Paste your Google Apps Script URL to connect.</div>
+      <input type="text" id="script-url" placeholder="https://script.google.com/macros/s/...../exec" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;margin-bottom:10px;box-sizing:border-box">
+      <div id="url-error" style="color:#A32D2D;font-size:12px;margin-bottom:10px;display:none"></div>
+      <button id="connect-btn" style="width:100%;padding:11px;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer">Connect &amp; Launch</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN APP ── -->
+<div id="app">
+  <div class="nav">
+    <div class="nav-brand">PhoenixMMS <span>Material Management</span><span id="access-badge"></span></div>
+    <div class="nav-tab active" onclick="setTab('dashboard')">Dashboard</div>
+    <div class="nav-tab" onclick="setTab('pos')">Purchase Orders</div>
+    <div class="nav-tab" onclick="setTab('goods-receiving')">Goods Receiving</div>
+    <div class="nav-tab" onclick="setTab('warehouse')">Warehousing</div>
+    <div class="nav-tab" id="issue-tab" onclick="setTab('issue')">Issue to Contractor</div>
+    <div class="nav-tab" onclick="setTab('log')">Transaction Log</div>
+    <div class="nav-tab" onclick="setTab('reports')">Reports</div>
+    <div class="nav-right">
+      <span class="nav-status" id="sync-status">●&nbsp;Live</span>
+      <button class="nav-refresh" onclick="loadData()">↻ Refresh</button>
+      <button class="nav-refresh" onclick="logout()">&#x2192; Log Out</button>
+      <button class="nav-refresh" onclick="disconnect()">&#9881; Reconnect</button>
+    </div>
+  </div>
+
+  <div id="alert-bar" style="padding:0 20px"></div>
+  <div class="content" id="main-content">
+    <div class="loading-screen">
+      <div class="spinner"></div>
+      <div id="load-msg" style="font-size:13px;color:#888;transition:opacity 0.3s">Connecting to Google Sheets…</div>
+      <div style="font-size:11px;color:#bbb;margin-top:4px">This may take a few seconds on first load</div>
+    </div>
+
+  </div>
+  <div id="modal-container"></div>
+</div>
+
+<script>
+var scriptUrl = '';
+var appState = { tab:'dashboard', pos:[], txns:[], search:'', arrearComments:{}, arrearDates:{} };
+function isReadOnly() { return sessionStorage.getItem('pmms_role') === 'readonly'; }
+function actionBtn(html) { return isReadOnly() ? '' : html; }
+
+const uid  = () => Math.random().toString(36).slice(2,8).toUpperCase();
+const today = () => new Date().toISOString().slice(0,10);
+const fmtDate = d => d ? new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '--';
+
+function getItemStatus(item) {
+  if (item.received === 0) return 'pending';
+  if (item.issued >= item.ordered) return 'complete';
+  if (item.issued > 0 && item.issued < item.ordered) return 'partial_issued';
+  if (item.putaway >= item.received && item.received >= item.ordered) return 'received';
+  if (item.putaway > 0) return 'putaway';
+  if (item.received >= item.ordered) return 'received';
+  return 'partial';
+}
+function getPOStatus(po) {
+  const s = po.items.map(getItemStatus);
+  const totOrdered  = po.items.reduce((a,i)=>a+i.ordered,0);
+  const totReceived = po.items.reduce((a,i)=>a+i.received,0);
+  const totIssued   = po.items.reduce((a,i)=>a+i.issued,0);
+  if (s.every(x=>x==='complete')) return 'complete';
+  if (s.every(x=>x==='pending')) return 'pending';
+  if (totIssued > 0 && totIssued < totOrdered) return 'partial_issued';
+  if (totIssued >= totOrdered && totOrdered > 0) return 'complete';
+  if (totReceived > 0 && totReceived < totOrdered) return 'partial_received';
+  if (s.some(x=>x==='putaway')) return 'putaway';
+  if (s.some(x=>x==='received')) return 'received';
+  return 'pending';
+}
+const STATUS_LABELS = { pending:'Awaiting Delivery', partial:'Partial Delivery', partial_received:'Partially Received', partial_issued:'Partially Issued', received:'Goods In', putaway:'Put Away', issued:'Issued', complete:'Complete' };
+const badge = s => `<span class="badge badge-${s}">${STATUS_LABELS[s]||s}</span>`;
+
+function showAlert(msg, type='success') {
+  const bar = document.getElementById('alert-bar');
+  bar.innerHTML = `<div class="alert alert-${type}" style="margin-top:12px">${msg}</div>`;
+  setTimeout(() => bar.innerHTML = '', 4000);
+}
+
+function setSyncStatus(text, color='rgba(255,255,255,0.7)') {
+  const el = document.getElementById('sync-status');
+  if (el) { el.textContent = text; el.style.color = color; }
+}
+
+async function sheetGet(params) {
+  const url = (window.scriptUrl || scriptUrl) + '?' + new URLSearchParams(params);
+  window._fetchController = new AbortController();
+  const timeout = setTimeout(() => window._fetchController.abort(), 5000);
+  try {
+    const r = await fetch(url, { signal: window._fetchController.signal });
+    clearTimeout(timeout);
+    window._fetchController = null;
+    return r.json();
+  } catch(e) {
+    clearTimeout(timeout);
+    window._fetchController = null;
+    if (e.name === 'AbortError') throw new Error('Request cancelled or timed out -- click Reconnect to re-enter your URL');
+    throw new Error('Network error: ' + e.message);
+  }
+}
+
+async function sheetPost(body) {
+  // Google Apps Script doesn't support CORS preflight on POST from file:// or cross-origin
+  // Workaround: send payload as a base64-encoded GET parameter to avoid preflight
+  const encoded = encodeURIComponent(JSON.stringify(body));
+  const url = (window.scriptUrl || scriptUrl) + '?method=POST&payload=' + encoded;
+  const r = await fetch(url);
+  return r.json();
+}
+
+async function loadData(silent=false) {
+  // Load from cache instantly if available
+  const CACHE_KEY = 'pmms_cache';
+  const cached = sessionStorage.getItem(CACHE_KEY);
+  if (cached) {
+    try {
+      const cd = JSON.parse(cached);
+      appState.pos  = cd.pos  || [];
+      appState.txns = cd.txns || [];
+      appState.arrearComments = {};
+      appState.arrearDates = {};
+      appState.pos.forEach(function(po) {
+        po.items.forEach(function(i) {
+          if (i.arrear_comment) appState.arrearComments[i.item_id] = i.arrear_comment;
+          if (i.arrear_date)    appState.arrearDates[i.item_id]    = i.arrear_date;
+        });
+      });
+      setSyncStatus('* Cached', 'rgba(255,200,0,0.9)');
+      renderTab();
+      // Then fetch fresh in background silently
+      _refreshInBackground();
+      return;
+    } catch(e) { sessionStorage.removeItem(CACHE_KEY); }
+  }
+  // No cache -- show loading screen
+  if (!silent) {
+    setContent(`<div class="loading-screen">
+      <div class="spinner"></div>
+      <div id="load-msg" style="font-size:13px;color:#888;transition:opacity 0.3s">Connecting to Google Sheets...</div>
+      <div style="font-size:11px;color:#bbb;margin-top:4px">This may take a few seconds on first load</div>
+      <button onclick="disconnect()" style="margin-top:20px;background:transparent;border:1px solid #ddd;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;color:#888">? Wrong URL? Reconnect</button>
+    </div>`);
+  }
+  setSyncStatus('* Syncing...', 'rgba(255,210,0,0.9)');
+  try {
+    const data = await sheetGet({ action:'getData' });
+    if (!data.ok) throw new Error(data.error || 'Failed to load');
+    appState.pos  = data.pos  || [];
+    appState.txns = data.txns || [];
+    appState.arrearComments = {};
+    appState.arrearDates = {};
+    appState.pos.forEach(function(po) {
+      po.items.forEach(function(i) {
+        if (i.arrear_comment) appState.arrearComments[i.item_id] = i.arrear_comment;
+        if (i.arrear_date)    appState.arrearDates[i.item_id]    = i.arrear_date;
+      });
+    });
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ pos: appState.pos, txns: appState.txns }));
+    setSyncStatus('* Live', 'rgba(90,220,160,0.9)');
+    renderTab();
+  } catch(e) {
+    setSyncStatus('* Error', 'rgba(255,100,100,0.9)');
+    if (!silent) setContent(`<div class="alert alert-error" style="margin:20px 0">
+      <strong>Could not load data</strong><br><br>
+      ${e.message}<br><br>
+      <button onclick="loadData()" style="background:#A32D2D;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px">? Try Again</button>
+      &nbsp;
+      <button onclick="disconnect()" style="background:transparent;color:#A32D2D;border:1px solid #A32D2D;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px">? Reconnect</button>
+    </div>`);
+  }
+}
+
+async function _refreshInBackground() {
+  try {
+    const data = await sheetGet({ action:'getData' });
+    if (!data.ok) return;
+    appState.pos  = data.pos  || [];
+    appState.txns = data.txns || [];
+    appState.arrearComments = {};
+    appState.arrearDates = {};
+    appState.pos.forEach(function(po) {
+      po.items.forEach(function(i) {
+        if (i.arrear_comment) appState.arrearComments[i.item_id] = i.arrear_comment;
+        if (i.arrear_date)    appState.arrearDates[i.item_id]    = i.arrear_date;
+      });
+    });
+    sessionStorage.setItem('pmms_cache', JSON.stringify({ pos: appState.pos, txns: appState.txns }));
+    setSyncStatus('* Live', 'rgba(90,220,160,0.9)');
+    renderTab();
+  } catch(e) {
+    setSyncStatus('* Stale', 'rgba(180,180,180,0.9)');
+  }
+}
+
+function setContent(html) {
+  document.getElementById('main-content').innerHTML = html;
+}
+
+async function connectToSheet() {
+  const url = document.getElementById('script-url').value.trim();
+  const errEl = document.getElementById('config-error');
+  if (!url.startsWith('https://script.google.com')) {
+    errEl.textContent = 'Please enter a valid Google Apps Script URL'; errEl.style.display='block'; return;
+  }
+  errEl.style.display = 'none';
+  const btn = document.getElementById('connect-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Connecting...';
+  try {
+    scriptUrl = url;
+    const data = await sheetGet({ action:'getData' });
+    if (!data.ok) throw new Error(data.error || 'Bad response');
+    localStorage.setItem('phoenix_mms_url', url);
+    appState.pos  = data.pos  || [];
+    appState.txns = data.txns || [];
+    document.getElementById('config-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    setNavActive('dashboard');
+    renderTab();
+  } catch(e) {
+    errEl.textContent = 'Connection failed: ' + e.message + '. Make sure you deployed with Anyone access.';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Connect & Launch';
+  }
+}
+
+async function saveArrearComment(itemId, poId) {
+  var commentInput = document.getElementById('ac-' + itemId);
+  var dateInput    = document.getElementById('ad-' + itemId);
+  var saveBtn      = document.getElementById('as-' + itemId);
+  if (!commentInput) return;
+  var comment = commentInput.value.trim();
+  var date    = dateInput ? dateInput.value || '' : '';
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+  try {
+    // Save comment
+    await sheetPost({ action:'updateItem', item_id:itemId, field:'arrear_comment', value:comment });
+    // Save date
+    await sheetPost({ action:'updateItem', item_id:itemId, field:'arrear_date', value:date });
+    // Update local state
+    if (!appState.arrearComments) appState.arrearComments = {};
+    if (!appState.arrearDates)    appState.arrearDates    = {};
+    appState.arrearComments[itemId] = comment;
+    appState.arrearDates[itemId]    = date;
+    // Update the item in pos so it survives tab switches
+    appState.pos.forEach(function(po) {
+      po.items.forEach(function(i) {
+        if (i.item_id === itemId) { i.arrear_comment = comment; i.arrear_date = date; }
+      });
+    });
+    // Flash fields green
+    [commentInput, dateInput].forEach(function(el){ if(el){ el.style.border='1px solid #3B6D11'; el.style.background='#EAF3DE'; }});
+    if (saveBtn) { saveBtn.textContent = 'Saved!'; saveBtn.style.background='#3B6D11'; }
+    setTimeout(function(){
+      [commentInput, dateInput].forEach(function(el){ if(el){ el.style.border='1px solid #ddd'; el.style.background='white'; }});
+      if (saveBtn) { saveBtn.textContent = 'Save'; saveBtn.disabled=false; saveBtn.style.background='#0F6E56'; }
+    }, 2000);
+  } catch(e) {
+    if (saveBtn) { saveBtn.textContent = 'Error'; saveBtn.disabled=false; }
+    showAlert('Error saving: ' + e.message, 'error');
+  }
+}
+
+async function toggleInvoice(poId, field, current) {
+  if (isReadOnly()) return;
+  const newVal = !current;
+  try {
+    const res = await sheetPost({ action:'updatePO', po_id:poId, field, value:newVal });
+    if (!res.ok) throw new Error(res.error||'Update failed');
+    // Update local state
+    const po = appState.pos.find(p=>p.po_id===poId);
+    if (po) po[field] = newVal;
+    setContent(renderPOs());
+    showAlert((field==='invoice_received'?'Invoice received':'Invoice paid') + ' status updated');
+  } catch(e) { showAlert('Error: '+e.message,'error'); }
+}
+
+async function saveEditPO(poId) {
+  const supplier  = document.getElementById('ep-supplier').value.trim();
+  const date      = document.getElementById('ep-date').value;
+  const reference = document.getElementById('ep-reference').value.trim();
+  if (!supplier) { showAlert('Supplier is required','error'); return; }
+  const btn = document.getElementById('ep-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    await sheetPost({ action:'editPO', po_id:poId, supplier, date, reference });
+    // Update line items
+    const po = appState.pos.find(p=>p.po_id===poId);
+    if (po) {
+      for (const item of po.items) {
+        const desc = document.getElementById('ei-desc-'+item.item_id)?.value.trim();
+        const uom  = document.getElementById('ei-uom-'+item.item_id)?.value;
+        const ord  = document.getElementById('ei-ord-'+item.item_id)?.value;
+        const edd  = document.getElementById('ei-edd-'+item.item_id)?.value;
+        if (desc !== undefined) {
+          await sheetPost({ action:'editItem', item_id:item.item_id, description:desc, uom, ordered:ord, edd });
+        }
+      }
+      // Add new lines
+      const newDescs = [...document.querySelectorAll('.ep-new-desc')].map(i=>i.value.trim()).filter(Boolean);
+      const newUoms  = [...document.querySelectorAll('.ep-new-uom')].map(i=>i.value);
+      const newOrds  = [...document.querySelectorAll('.ep-new-ord')].map(i=>i.value);
+      const newEdds  = [...document.querySelectorAll('.ep-new-edd')].map(i=>i.value);
+      for (let i=0;i<newDescs.length;i++) {
+        if (newDescs[i] && Number(newOrds[i])>0) {
+          await sheetPost({ action:'addItem', po_id:poId, description:newDescs[i], uom:newUoms[i]||'EA', ordered:newOrds[i], edd:newEdds[i]||'' });
+        }
+      }
+    }
+    closeModal();
+    await loadData(true);
+    showAlert('PO updated successfully');
+  } catch(e) {
+    btn.disabled=false; btn.textContent='Save Changes';
+    showAlert('Error: '+e.message,'error');
+  }
+}
+
+function addEditPOLine() {
+  const container = document.getElementById('ep-new-lines');
+  const div = document.createElement('div');
+  div.className='form-row'; div.style.cssText='align-items:center;border-top:0.5px solid #eee;padding-top:10px';
+  div.innerHTML = '<div class="form-group" style="flex:3"><label>Description</label><input class="ep-new-desc" placeholder="Item description"></div>'
+    +'<div class="form-group"><label>UOM</label><select class="ep-new-uom"><option>EA</option><option>MTR</option><option>KG</option><option>BOX</option><option>SET</option><option>REEL</option><option>LOT</option></select></div>'
+    +'<div class="form-group"><label>Qty</label><input class="ep-new-ord" type="number" min="1" value="1"></div>'
+    +'<div class="form-group"><label>Req. Delivery</label><input class="ep-new-edd" type="date"></div>'
+    +'<div style="padding-top:22px"><button class="btn btn-sm" style="background:#FCEBEB;color:#A32D2D;border:none" onclick="this.parentElement.parentElement.remove()emove</button></div>';
+  container.appendChild(div);
+}
+
+function disconnect() {
+  clearInterval(window._loadMsgTimer);
+  if (window._fetchController) { try { window._fetchController.abort(); } catch(e){} }
+  localStorage.removeItem('phoenix_mms_url'); sessionStorage.removeItem('pmms_cache');
+  location.reload();
+}
+
+function logout() {
+  // Clear session auth but keep the URL so reconnect is instant
+  sessionStorage.removeItem('pmms');
+  sessionStorage.removeItem('pmms_role');
+  sessionStorage.removeItem('pmms_cache');
+  location.reload();
+}
+
+function setTab(tab) {
+  appState.tab = tab;
+  appState.search = ''; appState.poSearch = '';
+  setNavActive(tab);
+  renderTab();
+}
+function setNavActive(tab) {
+  document.querySelectorAll('.nav-tab').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('onclick') === `setTab('${tab}')`);
+  });
+}
+function renderTab() {
+  const t = appState.tab;
+  if (t==='dashboard')      setContent(renderDashboard());
+  else if (t==='pos')       setContent(renderPOs());
+  else if (t==='goods-receiving') setContent(renderGR());
+  else if (t==='warehouse') setContent(renderWarehouse());
+  else if (t==='issue')     setContent(renderIssue());
+  else if (t==='log')       setContent(renderLog());
+  else if (t==='reports')    setContent(renderReports());
+}
+
+function renderDashboard() {
+  const allItems = appState.pos.flatMap(p => p.items.map(i => ({...i, po_edd: p.edd})));
+  const totOrd = allItems.reduce((a,i)=>a+i.ordered,0);
+  const totRec = allItems.reduce((a,i)=>a+i.received,0);
+  const totPut = allItems.reduce((a,i)=>a+i.putaway,0);
+  const totIss = allItems.reduce((a,i)=>a+i.issued,0);
+  const pct = totOrd > 0 ? Math.round(totRec/totOrd*100) : 0;
+  // Part number counts (line items) for the metric cards
+  // Each item counted in exactly one stage -- the furthest it has NOT yet completed
+  // Outstanding: nothing received yet OR still short on delivery
+  const pnOutstanding = allItems.filter(i => i.received < i.ordered).length;
+  const pnInArrears   = allItems.filter(i => i.received < i.ordered && i.po_edd && i.po_edd < today()).length;
+  // Goods In: something received but not yet fully put away
+  const pnInGI        = allItems.filter(i => i.received > 0 && i.received > i.putaway).length;
+  // In Store: something put away but not yet fully issued
+  const pnInStore     = allItems.filter(i => i.putaway > 0 && i.putaway > i.issued).length;
+  // Issued: at least some quantity has been issued
+  const pnIssued      = allItems.filter(i => i.issued > 0).length;
+  // Unit totals kept for the flow table and progress bar
+  const outstanding = totOrd - totRec;
+  const inGI = totRec - totPut;
+  const inStore = totPut - totIss;
+
+  const poRows = appState.pos.map(po => {
+    const tot=po.items.reduce((a,i)=>a+i.ordered,0);
+    const rec=po.items.reduce((a,i)=>a+i.received,0);
+    const put=po.items.reduce((a,i)=>a+i.putaway,0);
+    const iss=po.items.reduce((a,i)=>a+i.issued,0);
+    const p=tot>0?Math.round(rec/tot*100):0;
+    const todayStr2 = today();
+    let eddCell = '--';
+    if (po.edd) {
+      const overdue = po.edd < todayStr2 && getPOStatus(po) !== 'complete';
+      eddCell = `<span style="${overdue?'color:#A32D2D;font-weight:600':''}">${fmtDate(po.edd)}${overdue?' !':''}</span>`;
+    }
+    return `<tr>
+      <td><strong>${po.po_id}</strong></td>
+      <td>${po.supplier}</td>
+      <td style="font-size:12px;color:#888">${po.reference||'--'}</td>
+      <td style="font-size:12px">${eddCell}</td>
+      <td>${badge(getPOStatus(po))}</td>
+      <td><div class="progress-bar" style="min-width:80px"><div class="progress-fill" style="width:${p}%"></div></div><div class="qty-detail" style="margin-top:2px">${rec}/${tot} received</div></td>
+      <td style="color:#0F6E56;font-weight:500">${put}</td>
+      <td style="color:#534AB7;font-weight:500">${iss}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="openModal('viewPO','','${po.po_id}')">View</button></td>
+    </tr>`;
+  }).join('');
+
+  const tldots={received:'#0F6E56',putaway:'#3B6D11',issued:'#534AB7'};
+  const recentTxns=[...appState.txns].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  const tlItems=recentTxns.map(t=>`<li>
+    <div class="tl-dot" style="background:${tldots[t.type]||'#888'}"></div>
+    <div class="tl-date">${fmtDate(t.date)}</div>
+    <div class="tl-text"><strong>${t.type}</strong> -- ${t.item_desc} <span class="tag">x${t.qty}</span>${t.contractor?' ? '+t.contractor:''}</div>
+  </li>`).join('');
+
+  return `
+  <div class="grid-4">
+    <div class="metric c-amber"><div class="metric-label">Outstanding Delivery</div><div class="metric-val">${pnOutstanding}</div><div class="metric-sub">items &nbsp;&middot;&nbsp; ${outstanding} qty outstanding</div></div>
+    <div class="metric c-blue"><div class="metric-label">Goods In</div><div class="metric-val">${pnInGI}</div><div class="metric-sub">items &nbsp;.&nbsp; ${inGI} qty in goods in</div></div>
+    <div class="metric c-teal"><div class="metric-label">In Store</div><div class="metric-val">${pnInStore}</div><div class="metric-sub">items &nbsp;.&nbsp; ${inStore} qty in store</div></div>
+    <div class="metric c-green"><div class="metric-label">Issued to Contractor</div><div class="metric-val">${pnIssued}</div><div class="metric-sub">items &nbsp;.&nbsp; ${totIss} qty issued</div></div>
+  </div>
+  <div class="card">
+    <div class="section-header"><div class="card-title" style="margin:0">Purchase Order Status</div></div>
+    <table><thead><tr><th>PO</th><th>Supplier</th><th>Reference</th><th>Req. Delivery</th><th>Status</th><th>Delivery Progress</th><th>In Store (qty)</th><th>Issued (qty)</th><th></th></tr></thead>
+    <tbody>${poRows||'<tr><td colspan="8"><div class="empty-state">No purchase orders yet -- add one in the Purchase Orders tab</div></td></tr>'}</tbody></table>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Recent Transactions</div><ul class="timeline">${tlItems||'<div class="empty-state">No transactions yet</div>'}</ul></div>
+    <div class="card"><div class="card-title">Material Flow</div>
+      <table><thead><tr><th>Stage</th><th>Items</th><th>% of total</th></tr></thead><tbody>
+        <tr>
+          <td>${badge('pending')}</td>
+          <td>
+            ${pnOutstanding}
+            <div style="font-size:11px;margin-top:3px;font-weight:500;${pnInArrears > 0 ? 'color:#A32D2D' : 'color:#aaa'}">of which ${pnInArrears} in arrears</div>
+          </td>
+          <td>${allItems.length?Math.round(pnOutstanding/allItems.length*100):0}%</td>
+        </tr>
+        <tr><td>${badge('received')}</td><td>${pnInGI}</td><td>${allItems.length?Math.round(pnInGI/allItems.length*100):0}%</td></tr>
+        <tr><td>${badge('putaway')}</td><td>${pnInStore}</td><td>${allItems.length?Math.round(pnInStore/allItems.length*100):0}%</td></tr>
+        <tr><td>${badge('issued')}</td><td>${pnIssued}</td><td>${allItems.length?Math.round(pnIssued/allItems.length*100):0}%</td></tr>
+      </tbody></table>
+      <div style="margin-top:14px"><div class="progress-bar" style="height:10px"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div style="font-size:11px;color:#888;margin-top:4px">Overall delivery: ${pct}% received (${totRec}/${totOrd})</div></div>
+    </div>
+  </div>`;
+}
+
+function renderPOs() {
+  const todayStr = today();
+  const q = (appState.poSearch||'').toLowerCase();
+  const filtered = q ? appState.pos.filter(po =>
+    po.supplier.toLowerCase().includes(q) ||
+    po.po_id.toLowerCase().includes(q) ||
+    (po.reference||'').toLowerCase().includes(q)
+  ) : appState.pos;
+
+  const rows = filtered.map(po => {
+    const tot=po.items.reduce((a,i)=>a+i.ordered,0);
+    const status = getPOStatus(po);
+    let eddDisplay = '--'; let eddStyle = '';
+    if (po.edd) {
+      const overdue = po.edd < todayStr && status !== 'complete' && status !== 'issued';
+      const dueSoon = !overdue && po.edd <= new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+      eddDisplay = fmtDate(po.edd) + (overdue ? ' !' : '');
+      eddStyle = overdue ? 'color:#A32D2D;font-weight:600' : dueSoon ? 'color:#BA7517;font-weight:500' : 'color:#3B6D11';
+    }
+    const invRecStyle = po.invoice_received ? 'background:#EAF3DE;color:#3B6D11;border:1px solid #3B6D11' : 'background:#f7f5f0;color:#666;border:1px solid #ccc';
+    const invPaidStyle = po.invoice_paid ? 'background:#EAF3DE;color:#3B6D11;border:1px solid #3B6D11' : 'background:#f7f5f0;color:#666;border:1px solid #ccc';
+    const invRecBtn = isReadOnly()
+      ? `<span style="font-size:12px;${po.invoice_received?'color:#3B6D11;font-weight:500':'color:#bbb'}">${po.invoice_received?'Yes':'No'}</span>`
+      : `<button class="btn btn-sm" style="${invRecStyle};padding:3px 8px;font-size:11px;cursor:pointer" onclick="toggleInvoice('${po.po_id}','invoice_received',${po.invoice_received})">${po.invoice_received?'&#10003; Received':'Pending'}</button>`;
+    const invPaidBtn = isReadOnly()
+      ? `<span style="font-size:12px;${po.invoice_paid?'color:#3B6D11;font-weight:500':'color:#bbb'}">${po.invoice_paid?'Yes':'No'}</span>`
+      : `<button class="btn btn-sm" style="${invPaidStyle};padding:3px 8px;font-size:11px;cursor:pointer" onclick="toggleInvoice('${po.po_id}','invoice_paid',${po.invoice_paid})">${po.invoice_paid?'&#10003; Paid':'Pending'}</button>`;
+
+    // Line items sub-rows
+    const lineRows = po.items.map(item => `
+      <tr style="background:#fafaf8">
+        <td style="padding:5px 10px 5px 28px;border-bottom:0.5px solid #f0ede8;font-size:12px;color:#444" colspan="2">${item.description}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0ede8;font-size:12px;color:#888;text-align:center">${item.uom}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0ede8;font-size:12px;text-align:center">${item.edd?fmtDate(item.edd):'--'}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0ede8;font-size:12px;text-align:center">${item.ordered}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0ede8;font-size:12px;text-align:center">${item.received}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0ede8;font-size:12px;text-align:center">${item.putaway}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0ede8;font-size:12px;text-align:center;color:#534AB7">${item.issued}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0ede8;font-size:12px;text-align:center">${badge(getItemStatus(item))}</td>
+        <td colspan="2" style="border-bottom:0.5px solid #f0ede8"></td>
+      </tr>`).join('');
+
+    return `<tr style="border-top:2px solid #e0ede8">
+      <td><strong>${po.po_id}</strong></td>
+      <td>${fmtDate(po.date)}</td><td>${po.supplier}</td>
+      <td style="font-size:12px;color:#888">${po.reference||'--'}</td>
+      <td style="color:#888;font-size:12px">${po.items.length} lines / ${tot} qty</td>
+      <td>${badge(status)}</td>
+      <td style="text-align:center">${invRecBtn}</td>
+      <td style="text-align:center">${invPaidBtn}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="openModal('viewPO','','${po.po_id}')">View</button></td>
+    </tr>
+    <tr><td colspan="10" style="padding:0;border-bottom:2px solid #e8e4dc">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="background:#f0ede8">
+          <th style="padding:4px 10px 4px 28px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:0.05em;text-align:left" colspan="2">Part Description</th>
+          <th style="padding:4px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">UOM</th>
+          <th style="padding:4px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Req. Delivery</th>
+          <th style="padding:4px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Ordered</th>
+          <th style="padding:4px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Received</th>
+          <th style="padding:4px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Put Away</th>
+          <th style="padding:4px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Issued</th>
+          <th style="padding:4px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center" colspan="3">Status</th>
+        </tr>
+        ${lineRows}
+      </table>
+    </td></tr>`;
+  }).join('');
+
+  const emptyMsg = q ? `No POs found matching "${q}"` : 'No POs yet. Click + New PO to create one.';
+
+  return `
+  <div class="section-header">
+    <div class="section-title">Purchase Orders <span style="font-size:13px;font-weight:400;color:#888">(${filtered.length} of ${appState.pos.length})</span></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="search-bar" placeholder="Search supplier, PO, reference..." value="${appState.poSearch||''}" oninput="appState.poSearch=this.value;setContent(renderPOs())">
+      ${actionBtn('<button class="btn btn-secondary" onclick="openModal(\'importCSV\')">&#8593; Import CSV</button>')}
+      ${actionBtn('<button class="btn btn-primary" onclick="openModal(\'addPO\')">+ New PO</button>')}
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden"><table>
+    <thead><tr><th>PO No.</th><th>Date</th><th>Supplier</th><th>Reference</th><th>Lines / Qty</th><th>Status</th><th>Invoice Rcvd</th><th>Invoice Paid</th><th></th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="10"><div class="empty-state">${emptyMsg}</div></td></tr>`}</tbody>
+  </table></div>`;
+}
+
+function renderGR() {
+  var roNotice = document.body.classList.contains('readonly') ? '<div class="alert alert-info" style="margin-bottom:12px">View only -- transaction buttons are hidden.</div>' : '';
+  const pending = appState.pos.flatMap(po=>po.items.map(i=>({...i,po_id:po.po_id,supplier:po.supplier}))).filter(i=>i.received<i.ordered);
+  // Sort by EDD ascending -- earliest due first, blank EDDs at the bottom
+  pending.sort((a,b) => {
+    if (!a.edd && !b.edd) return 0;
+    if (!a.edd) return 1;
+    if (!b.edd) return -1;
+    return a.edd.localeCompare(b.edd);
+  });
+  const todayStr = today();
+  const rows = pending.map(i=>{
+    let eddDisplay = '--';
+    let eddStyle = '';
+    if (i.edd) {
+      const overdue = i.edd < todayStr;
+      const dueSoon = !overdue && i.edd <= new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+      eddDisplay = fmtDate(i.edd);
+      if (overdue) eddStyle = 'color:#A32D2D;font-weight:600';
+      else if (dueSoon) eddStyle = 'color:#BA7517;font-weight:500';
+      else eddStyle = 'color:#3B6D11';
+      if (overdue) eddDisplay += ' ! Overdue';
+    }
+    return `<tr>
+      <td><strong>${i.po_id}</strong></td><td>${i.supplier}</td><td>${i.description}</td><td>${i.uom}</td>
+      <td style="${eddStyle}">${eddDisplay}</td>
+      <td>${i.ordered}</td><td>${i.received}</td>
+      <td style="color:#BA7517;font-weight:500">${i.ordered-i.received}</td>
+      <td>${actionBtn(`<button class="btn btn-primary btn-sm" onclick="openModal('receive','${i.item_id}','${i.po_id}')">Receive Goods</button>`)}</td>
+    </tr>`;
+  }).join('');
+  const recent=[...appState.txns].filter(t=>t.type==='received').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  const tRows=recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td><strong>${t.po_id}</strong></td><td>${t.item_desc}</td><td>${t.qty}</td><td>${t.location||'--'}</td><td>${t.note||'--'}</td></tr>`).join('');
+  return `
+  <div class="grid-4"><div class="metric c-amber"><div class="metric-label">Lines Awaiting</div><div class="metric-val">${pending.length}</div></div>
+  <div class="metric c-blue"><div class="metric-label">Qty Outstanding</div><div class="metric-val">${pending.reduce((a,i)=>a+i.ordered-i.received,0)}</div></div>
+  <div class="metric" style="background:#FCEBEB"><div class="metric-label" style="color:#A32D2D">Overdue</div><div class="metric-val" style="color:#A32D2D">${pending.filter(i=>i.edd&&i.edd<todayStr).length}</div><div class="metric-sub">past expected date</div></div>
+  <div class="metric c-teal"><div class="metric-label">GRNs Today</div><div class="metric-val">${appState.txns.filter(t=>t.type==='received'&&t.date===today()).length}</div></div></div>
+  <div class="card"><div class="section-title" style="margin-bottom:14px">Items Awaiting Delivery</div>
+  <table><thead><tr><th>PO</th><th>Supplier</th><th>Description</th><th>UOM</th><th>Expected Delivery</th><th>Ordered</th><th>Received</th><th>Outstanding</th><th></th></tr></thead>
+  <tbody>${rows||'<tr><td colspan="9"><div class="empty-state">All items received</div></td></tr>'}</tbody></table></div>
+  <div class="card"><div class="card-title">Recent Goods Receipts</div>
+  <table><thead><tr><th>Date</th><th>PO</th><th>Description</th><th>Qty</th><th>GI Location</th><th>Note</th></tr></thead>
+  <tbody>${tRows||'<tr><td colspan="6"><div class="empty-state">No receipts logged yet</div></td></tr>'}</tbody></table></div>`;
+}
+
+function renderWarehouse() {
+  const awaiting = appState.pos.flatMap(po=>po.items.map(i=>({...i,po_id:po.po_id}))).filter(i=>i.received>i.putaway);
+  const rows=awaiting.map(i=>`<tr>
+    <td><strong>${i.po_id}</strong></td><td>${i.description}</td><td>${i.uom}</td>
+    <td>${i.received}</td><td>${i.putaway}</td>
+    <td style="color:#185FA5;font-weight:500">${i.received-i.putaway}</td>
+    <td>${actionBtn(`<button class="btn btn-blue btn-sm" onclick="openModal('putaway','${i.item_id}','${i.po_id}')">Put Away</button>`)}</td>
+  </tr>`).join('');
+  const recent=[...appState.txns].filter(t=>t.type==='putaway').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  const tRows=recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td><strong>${t.po_id}</strong></td><td>${t.item_desc}</td><td>${t.qty}</td><td>${t.location||'--'}</td><td>${t.note||'--'}</td></tr>`).join('');
+  return `
+  <div class="grid-3"><div class="metric c-blue"><div class="metric-label">Lines in Goods In</div><div class="metric-val">${awaiting.length}</div></div>
+  <div class="metric c-teal"><div class="metric-label">Qty to Put Away</div><div class="metric-val">${awaiting.reduce((a,i)=>a+i.received-i.putaway,0)}</div></div>
+  <div class="metric c-green"><div class="metric-label">Put-Aways Today</div><div class="metric-val">${appState.txns.filter(t=>t.type==='putaway'&&t.date===today()).length}</div></div></div>
+  <div class="card"><div class="section-title" style="margin-bottom:14px">Items in Goods In -- Awaiting Put-Away</div>
+  <table><thead><tr><th>PO</th><th>Description</th><th>UOM</th><th>Received</th><th>Put Away</th><th>To Put Away</th><th></th></tr></thead>
+  <tbody>${rows||'<tr><td colspan="7"><div class="empty-state">All received items are put away</div></td></tr>'}</tbody></table></div>
+  <div class="card"><div class="card-title">Recent Put-Away Transactions</div>
+  <table><thead><tr><th>Date</th><th>PO</th><th>Description</th><th>Qty</th><th>Location</th><th>Note</th></tr></thead>
+  <tbody>${tRows||'<tr><td colspan="6"><div class="empty-state">No put-aways logged yet</div></td></tr>'}</tbody></table></div>`;
+}
+
+function renderIssue() {
+  const avail = appState.pos.flatMap(po=>po.items.map(i=>({...i,po_id:po.po_id}))).filter(i=>i.putaway>i.issued);
+
+  // For each available item, find the most recent put-away transaction to get the warehouse location
+  const putawayTxns = appState.txns.filter(t=>t.type==='putaway');
+  const getLocation = (itemId) => {
+    const txn = [...putawayTxns]
+      .filter(t=>t.item_id===itemId && t.location)
+      .sort((a,b)=>b.date.localeCompare(a.date))[0];
+    return txn ? txn.location : '--';
+  };
+
+  const rows=avail.map(i=>{
+    const loc = getLocation(i.item_id);
+    return `<tr>
+      <td><strong>${i.po_id}</strong></td><td>${i.description}</td><td>${i.uom}</td>
+      <td style="color:#185FA5;font-weight:500">${loc}</td>
+      <td>${i.putaway}</td><td>${i.issued}</td>
+      <td style="color:#3B6D11;font-weight:500">${i.putaway-i.issued}</td>
+      <td>${actionBtn(`<button class="btn btn-green btn-sm" onclick="openModal('issue','${i.item_id}','${i.po_id}')">Issue</button>`)}</td>
+    </tr>`;
+  }).join('');
+
+  const recent=[...appState.txns].filter(t=>t.type==='issued').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  const tRows=recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td><strong>${t.po_id}</strong></td><td>${t.item_desc}</td><td>${t.qty}</td><td>${t.location||'--'}</td><td>${t.contractor||'--'}</td><td>${t.note||'--'}</td></tr>`).join('');
+  return `
+  <div class="grid-3"><div class="metric c-green"><div class="metric-label">Lines Available</div><div class="metric-val">${avail.length}</div></div>
+  <div class="metric c-teal"><div class="metric-label">Qty Available</div><div class="metric-val">${avail.reduce((a,i)=>a+i.putaway-i.issued,0)}</div></div>
+  <div class="metric c-amber"><div class="metric-label">Issues Today</div><div class="metric-val">${appState.txns.filter(t=>t.type==='issued'&&t.date===today()).length}</div></div></div>
+  <div class="card"><div class="section-title" style="margin-bottom:14px">Stock Available for Issue</div>
+  <table><thead><tr><th>PO</th><th>Description</th><th>UOM</th><th>Warehouse Location</th><th>In Store</th><th>Issued</th><th>Available</th><th></th></tr></thead>
+  <tbody>${rows||'<tr><td colspan="8"><div class="empty-state">No stock available to issue</div></td></tr>'}</tbody></table></div>
+  <div class="card"><div class="card-title">Recent Issues to Contractor</div>
+  <table><thead><tr><th>Date</th><th>PO</th><th>Description</th><th>Qty</th><th>From Location</th><th>Contractor</th><th>Note</th></tr></thead>
+  <tbody>${tRows||'<tr><td colspan="7"><div class="empty-state">No issues logged yet</div></td></tr>'}</tbody></table></div>`;
+}
+
+function renderLog() {
+  const q=appState.search.toLowerCase();
+  const filtered=[...appState.txns].filter(t=>!q||t.item_desc.toLowerCase().includes(q)||t.po_id.toLowerCase().includes(q)||(t.contractor||'').toLowerCase().includes(q)).sort((a,b)=>b.date.localeCompare(a.date));
+  const typeClass={received:'badge-received',putaway:'badge-putaway',issued:'badge-issued'};
+  const rows=filtered.map(t=>`<tr>
+    <td>${fmtDate(t.date)}</td>
+    <td><span class="badge ${typeClass[t.type]||''}">${t.type}</span></td>
+    <td><strong>${t.po_id}</strong></td>
+    <td>${t.item_desc}</td><td>${t.qty}</td>
+    <td>${t.location||'--'}</td><td>${t.contractor||'--'}</td><td>${t.note||'--'}</td>
+  </tr>`).join('');
+  return `
+  <div class="section-header"><div class="section-title">Full Transaction Log (${filtered.length} records)</div>
+  <input class="search-bar" placeholder="Search item, PO, contractor..." value="${appState.search}" oninput="appState.search=this.value;setContent(renderLog())"></div>
+  <div class="card" style="padding:0;overflow:hidden"><table>
+    <thead><tr><th>Date</th><th>Type</th><th>PO</th><th>Description</th><th>Qty</th><th>Location</th><th>Contractor</th><th>Note</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="8"><div class="empty-state">No transactions found</div></td></tr>'}</tbody>
+  </table></div>`;
+}
+
+function openModal(type, itemId='', poId='') {
+  const mc = document.getElementById('modal-container');
+  const po = appState.pos.find(p=>p.po_id===poId);
+  const item = po?.items.find(i=>i.item_id===itemId);
+
+  if (type === 'addPO') {
+    mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+      <div class="modal-header"><div class="modal-title">Add Purchase Order</div><button class="close-btn" onclick="closeModal()">x</button></div>
+      <div class="form-row"><div class="form-group"><label>PO Number</label><input id="m-ponum" placeholder="PO-001"></div><div class="form-group"><label>Date</label><input id="m-date" type="date" value="${today()}"></div></div>
+      <div class="form-row"><div class="form-group"><label>Supplier</label><input id="m-supplier" placeholder="Supplier name"></div><div class="form-group"><label>Reference / Project Code</label><input id="m-ref" placeholder="e.g. DC-PHASE3-CABLE"></div></div>
+      <div class="form-row"><div class="form-group" style="color:#888;font-size:12px;padding-top:8px">Delivery dates are set per line item below.</div></div>
+      <div style="margin:12px 0 8px;font-size:12px;font-weight:500;color:#888;border-top:0.5px solid #eee;padding-top:12px">LINE ITEMS</div>
+      <div id="po-lines">
+        <div class="form-row cols-4" style="margin-bottom:8px">
+          <div class="form-group"><label>Description</label><input class="li-desc" placeholder="Item description"></div>
+          <div class="form-group"><label>UOM</label><select class="li-uom"><option>EA</option><option>MTR</option><option>KG</option><option>BOX</option><option>SET</option><option>REEL</option><option>LOT</option></select></div>
+          <div class="form-group"><label>Qty Ordered</label><input class="li-qty" type="number" placeholder="0" min="1"></div>
+          <div class="form-group"><label>Expected Delivery</label><input class="li-edd" type="date"></div>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-bottom:16px" onclick="addPOLine()">+ Add Line</button>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-po-btn" onclick="savePO()">Create PO</button>
+      </div>
+    </div></div>`;
+    return;
+  }
+
+  if (type === 'viewPO') {
+    if (!po) return;
+    const canDeletePO = po.items.every(i => i.received === 0 && i.putaway === 0 && i.issued === 0);
+    const rows = po.items.map(i => {
+      const canDelete = i.received === 0 && i.putaway === 0 && i.issued === 0;
+      const deleteBtn = canDelete && !isReadOnly()
+        ? `<button class="btn btn-sm" style="background:#FCEBEB;color:#A32D2D;border:none" onclick="deleteItem('${i.item_id}','${po.po_id}')">Delete</button>`
+        : canDelete ? '' : `<span style="font-size:11px;color:#aaa">In use</span>`;
+      return `<tr>
+        <td>${i.description}</td><td>${i.uom}</td>
+        <td>${i.edd ? fmtDate(i.edd) : '--'}</td>
+        <td>${i.ordered}</td><td>${i.received}</td><td>${i.putaway}</td><td>${i.issued}</td>
+        <td>${i.ordered-i.received>0?`<span style="color:#BA7517">${i.ordered-i.received} pending</span>`:'--'}</td>
+        <td>${badge(getItemStatus(i))}</td>
+        <td>${deleteBtn}</td>
+      </tr>`;
+    }).join('');
+    const deletePOBtn = canDeletePO && !isReadOnly()
+      ? `<button class="btn btn-sm" style="background:#FCEBEB;color:#A32D2D;border:1px solid #f09595;margin-right:auto" onclick="deletePO('${po.po_id}')">Delete Entire PO</button>`
+      : canDeletePO ? '' : `<span style="font-size:11px;color:#aaa;margin-right:auto">PO has transactions -- cannot fully delete</span>`;
+    mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:740px">
+      <div class="modal-header"><div class="modal-title">${po.po_id} -- ${po.supplier}</div><button class="close-btn" onclick="closeModal()">x</button></div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px">${po.reference||''} &nbsp;.&nbsp; PO Date: ${fmtDate(po.date)}${po.edd ? ' &nbsp;.&nbsp; Expected Delivery: ' + fmtDate(po.edd) : ''}</div>
+      <table><thead><tr><th>Description</th><th>UOM</th><th>Expected Delivery</th><th>Ordered</th><th>Received</th><th>Put Away</th><th>Issued</th><th>Outstanding</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:10px">
+        ${deletePOBtn}
+        ${!isReadOnly() ? `<button class="btn btn-primary" onclick="openModal('editPO','','${po.po_id}')">Edit PO</button>` : ''}
+        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+      </div>
+    </div></div>`;
+    return;
+  }
+
+  if ((type==='receive'||type==='putaway'||type==='issue') && item) {
+    const titles={receive:'Receive Goods -- GRN',putaway:'Put Away to Warehouse',issue:'Issue to Contractor'};
+    const max=type==='receive'?item.ordered-item.received:type==='putaway'?item.received-item.putaway:item.putaway-item.issued;
+    const locLabel=type==='receive'?'Goods In Location':type==='putaway'?'Warehouse Location':'Issue From Location';
+    const locPh=type==='receive'?'e.g. GI-A01':type==='putaway'?'e.g. WH-R3-B2':'e.g. WH-R3-B2';
+    const prefillLoc = type==='issue' ? (appState.txns.filter(t=>t.type==='putaway'&&t.item_id===item.item_id&&t.location).sort((a,b)=>b.date.localeCompare(a.date))[0]?.location||'') : '';
+    const contractorRow=type==='issue'?`<div class="form-row"><div class="form-group"><label>Contractor</label><input id="m-contractor" placeholder="Contractor / company name"></div><div class="form-group"><label>Work Area</label><input id="m-area" placeholder="e.g. Hall B Level 2"></div></div>`:'';
+    mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+      <div class="modal-header"><div class="modal-title">${titles[type]}</div><button class="close-btn" onclick="closeModal()">x</button></div>
+      <div style="background:#f7f5f0;border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px">
+        <div style="font-weight:500;margin-bottom:4px">${item.description}</div>
+        <div style="color:#888">PO: <strong>${po.po_id}</strong> &nbsp;.&nbsp; ${po.supplier} &nbsp;.&nbsp; UOM: ${item.uom}</div>
+        <div style="color:#888;margin-top:4px">Ordered: ${item.ordered} &nbsp;.&nbsp; Received: ${item.received} &nbsp;.&nbsp; Put Away: ${item.putaway} &nbsp;.&nbsp; Issued: ${item.issued}</div>
+        <div style="color:#BA7517;font-weight:500;margin-top:6px">Available to ${type}: <strong>${max} ${item.uom}</strong></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input id="m-date" type="date" value="${today()}"></div>
+        <div class="form-group"><label>Quantity (max ${max})</label><input id="m-qty" type="number" min="1" max="${max}" value="${max}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>${locLabel}</label><input id="m-loc" placeholder="${locPh}" value="${prefillLoc}"></div>
+        <div class="form-group"><label>Delivery / Advice Note No.</label><input id="m-ref" placeholder="Optional"></div>
+      </div>
+      ${contractorRow}
+      <div class="form-group" style="margin-bottom:16px"><label>Notes</label><input id="m-note" placeholder="Optional notes"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="txn-btn" onclick="saveTransaction('${type}','${item.item_id}','${po.po_id}','${item.description}')">Confirm ${type==='receive'?'Receipt':type==='putaway'?'Put-Away':'Issue'}</button>
+      </div>
+    </div></div>`;
+  }
+if (type === 'editPO') {
+    if (!po) return;
+    const lineRows = po.items.map(item => {
+      const hasActivity = item.received > 0 || item.putaway > 0 || item.issued > 0;
+      return `<div class="form-row" style="align-items:center;border-top:0.5px solid #eee;padding-top:10px">
+        <div class="form-group" style="flex:3">
+          <label>${item.description} <span style="color:#aaa;font-weight:400;font-size:11px">(${item.uom})</span></label>
+          <input id="ei-desc-${item.item_id}" value="${item.description.replace(/"/g,'&quot;')}" ${hasActivity?'':''}  style="width:100%">
+        </div>
+        <div class="form-group">
+          <label>UOM</label>
+          <select id="ei-uom-${item.item_id}" ${hasActivity?'disabled':''}>
+            ${['EA','MTR','KG','BOX','SET','REEL','LOT'].map(u=>`<option${item.uom===u?' selected':''}>${u}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Qty Ordered</label>
+          <input id="ei-ord-${item.item_id}" type="number" value="${item.ordered}" min="${item.received}" ${item.received>=item.ordered&&item.ordered>0?'':''}
+            title="${hasActivity?'Can only increase quantity once activity exists':''}">
+        </div>
+        <div class="form-group">
+          <label>Req. Delivery</label>
+          <input id="ei-edd-${item.item_id}" type="date" value="${item.edd||''}">
+        </div>
+      </div>`;
+    }).join('');
+
+    mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:760px;max-height:90vh;overflow-y:auto">
+      <div class="modal-header"><div class="modal-title">Edit PO — ${po.po_id}</div><button class="close-btn" onclick="closeModal()">x</button></div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px">Changes save directly to Google Sheets. Quantity can only be reduced to the amount already received.</div>
+
+      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#0F6E56;margin-bottom:10px">PO Details</div>
+      <div class="form-row">
+        <div class="form-group"><label>Supplier</label><input id="ep-supplier" value="${po.supplier.replace(/"/g,'&quot;')}"></div>
+        <div class="form-group"><label>Reference</label><input id="ep-reference" value="${(po.reference||'').replace(/"/g,'&quot;')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>PO Date</label><input id="ep-date" type="date" value="${po.date||''}"></div>
+        <div class="form-group"></div>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#0F6E56;margin:16px 0 10px">Line Items</div>
+      ${lineRows}
+
+      <div id="ep-new-lines" style="margin-top:4px"></div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="addEditPOLine()">+ Add Line Item</button>
+
+      <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #eee;padding-top:16px">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="ep-save-btn" onclick="saveEditPO('${po.po_id}')">Save Changes</button>
+      </div>
+    </div></div>`;
+    return;
+  }
+
+  if (type === 'importCSV') {
+    mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:660px">
+      <div class="modal-header"><div class="modal-title">Import POs from CSV</div><button class="close-btn" onclick="closeModal()">x</button></div>
+      <div style="background:#f7f5f0;border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:#555;line-height:1.7">
+        <strong>Required columns (row 1 must be headers):</strong><br>
+        <code style="background:#e8e4dc;padding:1px 4px;border-radius:3px;font-size:11px">po_number, supplier, po_date, reference, required_delivery_date, description, uom, qty, line_required_delivery_date</code><br>
+        Rows with the same <strong>po_number</strong> are grouped into one PO. Dates must be <strong>YYYY-MM-DD</strong>. <strong>edd</strong> and <strong>line_edd</strong> are optional.
+      </div>
+      <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #ccc;border-radius:8px;padding:32px;text-align:center;cursor:pointer;margin-bottom:14px;transition:border-color 0.15s"
+        ondragover="event.preventDefault();this.style.borderColor='#0F6E56'" ondragleave="this.style.borderColor='#ccc'"
+        ondrop="event.preventDefault();this.style.borderColor='#ccc';handleCSVFile(event.dataTransfer.files[0])">
+        <div style="font-size:24px;margin-bottom:8px">&#128196;</div>
+        <div style="font-size:13px;font-weight:500;color:#333">Drag &amp; drop your CSV here</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">or click to browse</div>
+        <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleCSVFile(this.files[0])">
+      </div>
+      <div id="csv-preview" style="display:none">
+        <div id="csv-summary" style="font-size:13px;margin-bottom:10px"></div>
+        <div id="csv-table-wrap" style="max-height:240px;overflow-y:auto;border:0.5px solid #ddd;border-radius:6px;margin-bottom:14px"></div>
+        <div id="csv-errors" style="color:#A32D2D;font-size:12px;margin-bottom:10px;display:none"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="csv-import-btn" style="display:none" onclick="importCSV()">Import POs</button>
+      </div>
+    </div></div>`;
+    return;
+  }
+}
+
+
+async function deleteItem(itemId, poId) {
+  if (!confirm('Delete this line item? This cannot be undone.')) return;
+  const btn = event.target;
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const res = await sheetPost({ action:'deleteItem', item_id: itemId, po_id: poId });
+    if (!res.ok) throw new Error(res.error || 'Delete failed');
+    closeModal();
+    await loadData(true);
+    showAlert('Line item deleted.');
+  } catch(e) {
+    btn.textContent = 'Delete'; btn.disabled = false;
+    showAlert('Error: ' + e.message, 'error');
+  }
+}
+
+async function deletePO(poId) {
+  if (!confirm('Delete the entire PO ' + poId + ' and all its line items? This cannot be undone.')) return;
+  try {
+    const res = await sheetPost({ action:'deletePO', po_id: poId });
+    if (!res.ok) throw new Error(res.error || 'Delete failed');
+    closeModal();
+    await loadData(true);
+    showAlert('PO ' + poId + ' deleted.');
+  } catch(e) {
+    showAlert('Error: ' + e.message, 'error');
+  }
+}
+
+
+var parsedCSVPos = [];
+
+function handleCSVFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      parsedCSVPos = parseCSV(e.target.result);
+      renderCSVPreview(parsedCSVPos);
+    } catch(err) {
+      document.getElementById('csv-errors').textContent = 'Parse error: ' + err.message;
+      document.getElementById('csv-errors').style.display = 'block';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row');
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g,'').replace('required_delivery_date','edd').replace('line_required_delivery_date','line_edd'));
+  const required = ['po_number','supplier','po_date','description','uom','qty'];
+  const missing = required.filter(r => !headers.includes(r));
+  if (missing.length) throw new Error('Missing required columns: ' + missing.join(', '));
+
+  const col = h => headers.indexOf(h);
+  const rows = lines.slice(1).map((line, idx) => {
+    // Handle quoted fields with commas
+    const vals = [];
+    let cur = '', inQ = false;
+    for (var ci=0; ci<line.length; ci++) {
+      var ch = line[ci];
+      if (ch === '"') inQ = !inQ;
+      else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    vals.push(cur.trim());
+    return {
+      lineNum: idx + 2,
+      po_number:  vals[col('po_number')]  || '',
+      supplier:   vals[col('supplier')]   || '',
+      po_date:    vals[col('po_date')]    || '',
+      reference:  col('reference') >= 0  ? vals[col('reference')]  || '' : '',
+      edd:        col('edd') >= 0        ? vals[col('edd')]        || '' : '',
+      description:vals[col('description')]|| '',
+      uom:        vals[col('uom')]        || 'EA',
+      qty:        parseInt(vals[col('qty')]) || 0,
+      line_edd:   col('line_edd') >= 0   ? vals[col('line_edd')]   || '' : '',
+    };
+  }).filter(r => r.po_number && r.description);
+
+  // Group into POs
+  const poMap = {};
+  const errors = [];
+  rows.forEach(r => {
+    if (!r.qty || r.qty <= 0) { errors.push('Row ' + r.lineNum + ': qty must be > 0 for "' + r.description + '"'); return; }
+    if (!poMap[r.po_number]) {
+      poMap[r.po_number] = { po_id: r.po_number, supplier: r.supplier, date: r.po_date, reference: r.reference, edd: r.edd, items: [] };
+    }
+    poMap[r.po_number].items.push({ item_id: uid(), description: r.description, uom: r.uom, ordered: r.qty, edd: r.line_edd || r.edd });
+  });
+
+  // Check for duplicate PO numbers already in system
+  const existing = appState.pos.map(p => p.po_id);
+  const dupes = Object.keys(poMap).filter(id => existing.includes(id));
+  if (dupes.length) errors.push('PO numbers already exist in system: ' + dupes.join(', '));
+
+  const result = Object.values(poMap);
+  result._errors = errors;
+  return result;
+}
+
+function renderCSVPreview(pos) {
+  const preview = document.getElementById('csv-preview');
+  const summary = document.getElementById('csv-summary');
+  const wrap    = document.getElementById('csv-table-wrap');
+  const errEl   = document.getElementById('csv-errors');
+  const btn     = document.getElementById('csv-import-btn');
+  preview.style.display = 'block';
+
+  const totalLines = pos.reduce((a,p) => a + p.items.length, 0);
+  summary.innerHTML = `<strong style="color:#0F6E56">${pos.length} POs</strong> and <strong style="color:#0F6E56">${totalLines} line items</strong> ready to import`;
+
+  let tbl = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  tbl += '<thead><tr style="background:#f7f5f0"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">PO</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Supplier</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Exp. Delivery</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Lines</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Items</th></tr></thead><tbody>';
+  pos.forEach((po,i) => {
+    const items = po.items.map(it => it.description + ' x' + it.ordered).join(', ');
+    tbl += `<tr style="background:${i%2===0?'white':'#f9f8f5'}">
+      <td style="padding:5px 8px;border-bottom:0.5px solid #eee"><strong>${po.po_id}</strong></td>
+      <td style="padding:5px 8px;border-bottom:0.5px solid #eee">${po.supplier}</td>
+      <td style="padding:5px 8px;border-bottom:0.5px solid #eee">${po.edd ? fmtDate(po.edd) : '--'}</td>
+      <td style="padding:5px 8px;border-bottom:0.5px solid #eee">${po.items.length}</td>
+      <td style="padding:5px 8px;border-bottom:0.5px solid #eee;color:#555;font-size:11px">${items}</td>
+    </tr>`;
+  });
+  tbl += '</tbody></table>';
+  wrap.innerHTML = tbl;
+
+  if (pos._errors && pos._errors.length) {
+    errEl.innerHTML = '&#9888; ' + pos._errors.join('<br>&#9888; ');
+    errEl.style.display = 'block';
+    btn.style.display = 'none';
+  } else {
+    errEl.style.display = 'none';
+    btn.style.display = pos.length ? 'inline-block' : 'none';
+  }
+}
+
+async function importCSV() {
+  const btn = document.getElementById('csv-import-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="border-top-color:white;width:14px;height:14px;border-width:2px;display:inline-block"></span> Importing...';
+  let imported = 0, failed = 0;
+  for (var _pi=0; _pi<parsedCSVPos.length; _pi++) { var po = parsedCSVPos[_pi];
+    try {
+      const res = await sheetPost({ action:'addPO', po });
+      if (res.ok) imported++; else { failed++; console.warn('Failed:', po.po_id, res.error); }
+    } catch(e) { failed++; }
+  }
+  closeModal();
+  await loadData(true);
+  if (failed === 0) showAlert(`${imported} PO${imported!==1?'s':''} imported successfully`);
+  else showAlert(`${imported} imported, ${failed} failed -- check console for details`, 'error');
+}
+
+function closeModal() {
+  document.getElementById('modal-container').innerHTML = '';
+}
+
+function addPOLine() {
+  const div = document.createElement('div');
+  div.className = 'form-row cols-4';
+  div.style.marginBottom = '8px';
+  div.innerHTML = `<div class="form-group"><label>Description</label><input class="li-desc" placeholder="Item description"></div><div class="form-group"><label>UOM</label><select class="li-uom"><option>EA</option><option>MTR</option><option>KG</option><option>BOX</option><option>SET</option><option>REEL</option><option>LOT</option></select></div><div class="form-group"><label>Qty Ordered</label><input class="li-qty" type="number" placeholder="0" min="1"></div><div class="form-group"><label>Expected Delivery</label><input class="li-edd" type="date"></div>`;
+  document.getElementById('po-lines').appendChild(div);
+}
+
+async function savePO() {
+  const poId    = document.getElementById('m-ponum').value.trim();
+  const supplier = document.getElementById('m-supplier').value.trim();
+  const ref     = document.getElementById('m-ref').value.trim();
+  const date    = document.getElementById('m-date').value;
+  const edd     = '';
+  if (!poId||!supplier) { alert('PO number and supplier are required'); return; }
+  const descs = [...document.querySelectorAll('.li-desc')].map(i=>i.value.trim());
+  const uoms  = [...document.querySelectorAll('.li-uom')].map(i=>i.value);
+  const qtys  = [...document.querySelectorAll('.li-qty')].map(i=>parseInt(i.value)||0);
+  const edds  = [...document.querySelectorAll('.li-edd')].map(i=>i.value||'');
+  const items = descs.map((d,i)=>({item_id:uid(),description:d,uom:uoms[i],ordered:qtys[i],edd:edds[i]})).filter(i=>i.description&&i.ordered>0);
+  if (!items.length) { alert('Add at least one valid line item'); return; }
+  const btn = document.getElementById('save-po-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner" style="border-top-color:#0F6E56;border-color:rgba(0,0,0,0.1);width:14px;height:14px;"></span> Saving...';
+  try {
+    const res = await sheetPost({ action:'addPO', po:{ po_id:poId, supplier, date, reference:ref, edd, items } });
+    if (!res.ok) throw new Error(res.error||'Save failed');
+    closeModal();
+    await loadData(true);
+    showAlert(`PO ${poId} created with ${items.length} line(s) -- saved to Google Sheets`);
+  } catch(e) {
+    btn.disabled=false; btn.textContent='Create PO';
+    showAlert('Error: '+e.message, 'error');
+  }
+}
+
+async function saveTransaction(type, itemId, poId, itemDesc) {
+  const qty  = parseInt(document.getElementById('m-qty')?.value)||0;
+  const date = document.getElementById('m-date')?.value||today();
+  const loc  = document.getElementById('m-loc')?.value||'';
+  const note = document.getElementById('m-note')?.value||'';
+  const contractor = document.getElementById('m-contractor')?.value||'';
+  const po   = appState.pos.find(p=>p.po_id===poId);
+  const item = po?.items.find(i=>i.item_id===itemId);
+  if (!item) return;
+  const max = type==='receive'?item.ordered-item.received:type==='putaway'?item.received-item.putaway:item.putaway-item.issued;
+  if (qty<=0||qty>max) { alert(`Quantity must be between 1 and ${max}`); return; }
+  const btn = document.getElementById('txn-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner" style="border-top-color:white;width:14px;height:14px;border-width:2px;"></span> Saving...';
+  try {
+    const res = await sheetPost({ action:'transaction', txn:{ txn_id:uid(), date, type:type==='receive'?'received':type==='issue'?'issued':type, po_id:poId, item_id:itemId, item_desc:itemDesc, qty, location:loc, contractor, note } });
+    if (!res.ok) throw new Error(res.error||'Save failed');
+    closeModal();
+    await loadData(true);
+    const labels={receive:'Goods received',received:'Goods received',putaway:'Put-away recorded',issue:'Issue recorded',issued:'Issue recorded'};
+    showAlert(`${labels[type]}: ${qty} x ${itemDesc} -- saved to Google Sheets`);
+  } catch(e) {
+    btn.disabled=false;
+    btn.textContent='Retry';
+    showAlert('Error: '+e.message, 'error');
+  }
+}
+
+
+function expandAllPOs() {
+  appState.pos.forEach(function(po){ appState.poStatusExpanded[po.po_id] = true; });
+  renderTab();
+}
+function collapseAllPOs() {
+  appState.pos.forEach(function(po){ appState.poStatusExpanded[po.po_id] = false; });
+  renderTab();
+}
+function togglePOExpand(poId, wasExpanded) {
+  appState.poStatusExpanded[poId] = !wasExpanded;
+  renderTab();
+}
+function renderReports() {
+  var now = new Date();
+  var todayStr = today();
+  var weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  var weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  var weekStr = fmtDate(weekStart.toISOString().slice(0,10)) + ' - ' + fmtDate(weekEnd.toISOString().slice(0,10));
+  var activeReport = appState.activeReport || 'weekly';
+
+  function printReport() { window.print(); }
+
+  // ---- SHARED HELPERS ----
+  var allItems = appState.pos.flatMap(function(po) { return po.items.map(function(i) { return Object.assign({}, i, {po_id:po.po_id, supplier:po.supplier, reference:po.reference, po_edd:po.edd}); }); });
+  var totalOrdered   = allItems.reduce(function(a,i){return a+i.ordered;},0);
+  var totalReceived  = allItems.reduce(function(a,i){return a+i.received;},0);
+  var totalPutaway   = allItems.reduce(function(a,i){return a+i.putaway;},0);
+  var totalIssued    = allItems.reduce(function(a,i){return a+i.issued;},0);
+  var totalPct = totalOrdered>0?Math.round(totalReceived/totalOrdered*100):0;
+  var overdueItems   = allItems.filter(function(i){return i.po_edd && i.po_edd < todayStr && i.received < i.ordered;});
+  var inStoreItems   = allItems.filter(function(i){return i.putaway > i.issued;});
+  var issuedItems    = allItems.filter(function(i){return i.issued > 0;});
+  var completeCount  = appState.pos.filter(function(po){return getPOStatus(po)==='complete';}).length;
+  var overdueCount   = appState.pos.filter(function(po){return po.edd && po.edd < todayStr && getPOStatus(po)!=='complete';}).length;
+
+  // Week transactions
+  var ws = weekStart.toISOString().slice(0,10);
+  var we = weekEnd.toISOString().slice(0,10);
+  var weekTxns = appState.txns.filter(function(t){return t.date >= ws && t.date <= we;});
+  var weekReceived = weekTxns.filter(function(t){return t.type==='received';});
+  var weekIssued   = weekTxns.filter(function(t){return t.type==='issued';});
+
+  // ---- REPORT SELECTOR ----
+  var tabs = [
+    {id:'weekly',     label:'Weekly Summary'},
+    {id:'po_status',  label:'PO Status'},
+    {id:'arrears',    label:'Arrears'},
+    {id:'in_storage', label:'Stock in Storage'},
+    {id:'issued',     label:'Issued to Contractor'},
+    {id:'invoices',   label:'Invoice Status'},
+    {id:'suppliers',  label:'Supplier Summary'},
+    {id:'items',      label:'Item Schedule'},
+    {id:'dashboard_charts', label:'Charts'},
+  ];
+  var tabHtml = tabs.map(function(t) {
+    var active = t.id === activeReport;
+    return '<button onclick="appState.activeReport=\'' + t.id + '\';renderTab()" style="padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:' + (active?'500':'400') + ';background:' + (active?'#0F6E56':'transparent') + ';color:' + (active?'white':'#555') + '">' + t.label + '</button>';
+  }).join('');
+
+  // ---- RENDER SELECTED REPORT ----
+  var reportHtml = '';
+  var reportTitle = '';
+
+  if (activeReport === 'weekly') {
+    reportTitle = 'Weekly Summary';
+    var recRows = weekReceived.length ? weekReceived.map(function(t) {
+      return '<tr><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + fmtDate(t.date) + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px"><strong>' + t.po_id + '</strong></td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + t.item_desc + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + t.qty + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + (t.location||'--') + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No deliveries this week</td></tr>';
+
+    var issRows = weekIssued.length ? weekIssued.map(function(t) {
+      return '<tr><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + fmtDate(t.date) + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px"><strong>' + t.po_id + '</strong></td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + t.item_desc + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + t.qty + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + (t.contractor||'--') + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No issues this week</td></tr>';
+
+    // Overdue items - undelivered with a required date in the past
+    var overdueItems = allItems.filter(function(i){
+      return i.received < i.ordered && i.po_edd && i.po_edd < todayStr;
+    }).sort(function(a,b){ return a.po_edd.localeCompare(b.po_edd); });
+
+    var arrDatesW = appState.arrearDates || {};
+    var arrCommentsW = appState.arrearComments || {};
+
+    var overdueRows = overdueItems.length ? overdueItems.map(function(i) {
+      var daysOverdue = Math.floor((new Date(todayStr) - new Date(i.po_edd)) / 86400000);
+      var revised = arrDatesW[i.item_id] || i.arrear_date || '';
+      var comment = arrCommentsW[i.item_id] || i.arrear_comment || '';
+      return '<tr>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px"><strong>' + i.po_id + '</strong></td>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + i.supplier + '</td>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + i.description + '</td>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;font-weight:600;color:#BA7517">' + (i.ordered - i.received) + '</td>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;color:#A32D2D;font-weight:600">' + fmtDate(i.po_edd) + '</td>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center"><span style="background:#FCEBEB;color:#A32D2D;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">' + daysOverdue + ' days</span></td>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;color:#185FA5">' + (revised ? fmtDate(revised) : '--') + '</td>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:12px;color:#666;font-style:' + (comment ? 'normal' : 'italic') + '">' + (comment || '--') + '</td>'
+        + '</tr>';
+    }).join('') : '<tr><td colspan="8" style="padding:16px;text-align:center;color:#3B6D11;font-size:13px">&#10003; No overdue materials</td></tr>';
+
+    reportHtml = `
+    <div class="grid-4" style="margin-bottom:16px">
+      <div class="metric c-teal"><div class="metric-label">Overall Delivery</div><div class="metric-val">${totalPct}%</div><div class="metric-sub">${totalReceived}/${totalOrdered} units</div></div>
+      <div class="metric" style="background:#EAF3DE"><div class="metric-label">POs Complete</div><div class="metric-val" style="color:#3B6D11">${completeCount}</div><div class="metric-sub">of ${appState.pos.length} total</div></div>
+      <div class="metric" style="background:#FCEBEB"><div class="metric-label">Overdue Items</div><div class="metric-val" style="color:#A32D2D">${overdueItems.length}</div><div class="metric-sub">past required date</div></div>
+      <div class="metric c-blue"><div class="metric-label">In Storage</div><div class="metric-val">${inStoreItems.reduce(function(a,i){return a+i.putaway-i.issued;},0)}</div><div class="metric-sub">units available</div></div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
+      <div style="padding:12px 16px;background:#FCEBEB;border-bottom:1px solid #f5c6c6;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:#A32D2D">
+        Overdue Materials (${overdueItems.length} items)
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#fafaf8">
+          <th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">PO</th>
+          <th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Supplier</th>
+          <th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Item</th>
+          <th style="padding:6px 10px;text-align:center;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Outstanding</th>
+          <th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Required Date</th>
+          <th style="padding:6px 10px;text-align:center;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Overdue By</th>
+          <th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Revised Date</th>
+          <th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Comment</th>
+        </tr></thead>
+        <tbody>${overdueRows}</tbody>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:12px 16px;background:#f7f5f0;border-bottom:1px solid #eee;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:#888">Deliveries This Week (${weekReceived.length} GRNs)</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#fafaf8"><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Date</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">PO</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Item</th><th style="padding:6px 10px;text-align:center;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Qty</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Location</th></tr></thead>
+          <tbody>${recRows}</tbody>
+        </table>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:12px 16px;background:#f7f5f0;border-bottom:1px solid #eee;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:#888">Issues This Week (${weekIssued.length} transactions)</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#fafaf8"><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Date</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">PO</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Item</th><th style="padding:6px 10px;text-align:center;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Qty</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:#888;font-weight:500;border-bottom:1px solid #eee">Contractor</th></tr></thead>
+          <tbody>${issRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  else if (activeReport === 'po_status') {
+    reportTitle = 'PO Status Report';
+    if (!appState.poStatusSearch) appState.poStatusSearch = '';
+    if (!appState.poStatusExpanded) appState.poStatusExpanded = {};
+    var psq = appState.poStatusSearch.toLowerCase();
+
+    var subHdr = '<tr style="background:#f0ede8">'
+      + '<th style="padding:5px 10px 5px 20px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:left" colspan="2">Line Item</th>'
+      + '<th style="padding:5px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">UOM</th>'
+      + '<th style="padding:5px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Ordered</th>'
+      + '<th style="padding:5px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Received</th>'
+      + '<th style="padding:5px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Put Away</th>'
+      + '<th style="padding:5px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Issued</th>'
+      + '<th style="padding:5px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Outstanding</th>'
+      + '<th style="padding:5px 10px;font-size:10px;font-weight:500;color:#888;text-transform:uppercase;text-align:center">Status</th>'
+      + '</tr>';
+
+    var filteredPos = psq ? appState.pos.filter(function(po){
+      return po.po_id.toLowerCase().includes(psq) ||
+             po.supplier.toLowerCase().includes(psq) ||
+             (po.reference||'').toLowerCase().includes(psq) ||
+             po.items.some(function(i){ return i.description.toLowerCase().includes(psq); });
+    }) : appState.pos;
+
+    var poBlocks = filteredPos.map(function(po) {
+      var ord=po.items.reduce(function(a,i){return a+i.ordered;},0);
+      var rec=po.items.reduce(function(a,i){return a+i.received;},0);
+      var pct=ord>0?Math.round(rec/ord*100):0;
+      var status=getPOStatus(po);
+      var overdue=po.edd && po.edd < todayStr && status!=='complete';
+      var isExpanded = appState.poStatusExpanded[po.po_id] === true; // default collapsed
+      var expandIcon = isExpanded ? '\u25BC' : '\u25BA';
+
+      var lineRows = po.items.map(function(item) {
+        return '<tr style="background:#fafaf8">'
+          + '<td style="padding:5px 10px 5px 20px;border-bottom:0.5px solid #eee;font-size:12px;color:#444" colspan="2">' + item.description + '</td>'
+          + '<td style="padding:5px 10px;border-bottom:0.5px solid #eee;font-size:12px;text-align:center;color:#888">' + item.uom + '</td>'
+          + '<td style="padding:5px 10px;border-bottom:0.5px solid #eee;font-size:12px;text-align:center">' + item.ordered + '</td>'
+          + '<td style="padding:5px 10px;border-bottom:0.5px solid #eee;font-size:12px;text-align:center">' + item.received + '</td>'
+          + '<td style="padding:5px 10px;border-bottom:0.5px solid #eee;font-size:12px;text-align:center">' + item.putaway + '</td>'
+          + '<td style="padding:5px 10px;border-bottom:0.5px solid #eee;font-size:12px;text-align:center;color:#534AB7;font-weight:500">' + item.issued + '</td>'
+          + '<td style="padding:5px 10px;border-bottom:0.5px solid #eee;font-size:12px;text-align:center;' + (item.ordered-item.received>0?'color:#BA7517':'color:#3B6D11') + '">' + (item.ordered-item.received>0?item.ordered-item.received:'--') + '</td>'
+          + '<td style="padding:5px 10px;border-bottom:0.5px solid #eee;font-size:12px;text-align:center">' + badge(getItemStatus(item)) + '</td>'
+          + '</tr>';
+      }).join('');
+
+      return '<tr style="background:#0F6E56;cursor:pointer" onclick="togglePOExpand(&apos;' + po.po_id + '&apos;,' + isExpanded + ')">' 
+          + '<td style="padding:10px;font-weight:600;font-size:13px;color:white;width:30px;text-align:center">' + expandIcon + '</td>'
+          + '<td style="padding:10px;font-weight:600;font-size:13px;color:white">' + po.po_id + '</td>'
+          + '<td style="padding:10px;font-size:13px;color:rgba(255,255,255,0.85)">' + po.supplier + '</td>'
+          + '<td style="padding:10px;font-size:12px;color:rgba(255,255,255,0.7)">' + (po.reference||'') + '</td>'
+          + '<td style="padding:10px;font-size:12px;color:' + (overdue?'#FAEEDA':'rgba(255,255,255,0.85)') + ';font-weight:' + (overdue?'600':'400') + '">' + (po.edd?fmtDate(po.edd):'--') + (overdue?' !':'') + '</td>'
+          + '<td style="padding:10px">' + badge(status) + '</td>'
+          + '<td style="padding:10px;font-size:12px;color:white" colspan="3"><div style="background:rgba(255,255,255,0.2);border-radius:3px;height:6px;width:100px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px"><div style="background:white;height:6px;width:' + pct + '%"></div></div>' + rec + '/' + ord + ' (' + pct + '%)</td>'
+        + '</tr>'
+        + (isExpanded ? subHdr + lineRows : '');
+    }).join('');
+
+    var emptyMsg = psq ? 'No POs match "' + psq + '"' : 'No purchase orders';
+    reportHtml = `
+    <div class="no-print" style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+      <input class="search-bar" style="width:280px" placeholder="Search PO, supplier, reference, item..." value="${appState.poStatusSearch||''}"
+        oninput="appState.poStatusSearch=this.value;renderTab()">
+      <button class="btn btn-secondary btn-sm" onclick="expandAllPOs()">Expand All</button>
+      <button class="btn btn-secondary btn-sm" onclick="collapseAllPOs()">Collapse All</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#085041">
+          <th style="padding:8px 6px;color:white;font-size:11px;width:30px"></th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">PO</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Supplier</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Reference</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Req. Delivery</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Status</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500" colspan="3">Progress</th>
+        </tr></thead>
+        <tbody>${poBlocks||'<tr><td colspan="9"><div class="empty-state">' + emptyMsg + '</div></td></tr>'}</tbody>
+      </table>
+    </div>`;
+  }
+
+  else if (activeReport === 'arrears') {
+    reportTitle = 'Arrears Report';
+    var arrears = allItems.filter(function(i){return i.received < i.ordered && i.po_edd && i.po_edd < todayStr;}).sort(function(a,b){
+      if (!a.po_edd && !b.po_edd) return 0;
+      if (!a.po_edd) return 1;
+      if (!b.po_edd) return -1;
+      return a.po_edd.localeCompare(b.po_edd);
+    });
+    var arrComments = appState.arrearComments || {};
+    var arrDates    = appState.arrearDates    || {};
+    var p = 'padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px';
+    var arrRows = arrears.length ? arrears.map(function(i) {
+      var outstanding     = i.ordered - i.received;
+      var overdue         = i.po_edd && i.po_edd < todayStr;
+      var origEdd         = i.po_edd ? fmtDate(i.po_edd) : '--';
+      var origStyle       = overdue ? 'color:#A32D2D;font-weight:600' : '';
+      var existingComment = arrComments[i.item_id] || (i.arrear_comment || '');
+      var existingDate    = arrDates[i.item_id]    || (i.arrear_date    || '');
+
+      if (isReadOnly()) {
+        return '<tr>'
+          + '<td style="' + p + '"><strong>' + i.po_id + '</strong></td>'
+          + '<td style="' + p + '">' + i.supplier + '</td>'
+          + '<td style="' + p + '">' + i.description + '</td>'
+          + '<td style="' + p + ';text-align:center">' + i.ordered + '</td>'
+          + '<td style="' + p + ';text-align:center">' + i.received + '</td>'
+          + '<td style="' + p + ';text-align:center;font-weight:600;color:#BA7517">' + outstanding + '</td>'
+          + '<td style="' + p + ';' + origStyle + '">' + origEdd + '</td>'
+          + '<td style="' + p + ';color:#185FA5">' + (existingDate ? fmtDate(existingDate) : '--') + '</td>'
+          + '<td style="' + p + ';color:#666;font-style:italic">' + (existingComment || '--') + '</td>'
+          + '<td></td>'
+          + '</tr>';
+      }
+
+      return '<tr>'
+        + '<td style="' + p + '"><strong>' + i.po_id + '</strong></td>'
+        + '<td style="' + p + '">' + i.supplier + '</td>'
+        + '<td style="' + p + '">' + i.description + '</td>'
+        + '<td style="' + p + ';text-align:center">' + i.ordered + '</td>'
+        + '<td style="' + p + ';text-align:center">' + i.received + '</td>'
+        + '<td style="' + p + ';text-align:center;font-weight:600;color:#BA7517">' + outstanding + '</td>'
+        + '<td style="' + p + ';' + origStyle + '">' + origEdd + '</td>'
+        + '<td style="padding:6px 8px;border-bottom:0.5px solid #eee">'
+            + '<input id="ad-' + i.item_id + '" type="date" value="' + existingDate + '" '
+            + 'style="font-size:12px;padding:4px 6px;border:1px solid #ddd;border-radius:5px;width:135px">'
+          + '</td>'
+        + '<td style="padding:6px 8px;border-bottom:0.5px solid #eee">'
+            + '<input id="ac-' + i.item_id + '" type="text" value="' + existingComment.replace(/"/g,'&quot;') + '" '
+            + 'placeholder="Add comment..." '
+            + 'style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:5px;width:100%;min-width:180px;box-sizing:border-box">'
+          + '</td>'
+        + '<td style="padding:6px 8px;border-bottom:0.5px solid #eee;white-space:nowrap">'
+            + '<button id="as-' + i.item_id + '" '
+            + 'onclick="saveArrearComment(\'' + i.item_id + '\',\'' + i.po_id + '\')" '
+            + 'style="background:#0F6E56;color:white;border:none;border-radius:6px;padding:7px 18px;font-size:13px;font-weight:500;cursor:pointer">Save</button>'
+          + '</td>'
+        + '</tr>';
+    }).join('') : '<tr><td colspan="10" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No outstanding deliveries</td></tr>';
+
+    var overdueArr = arrears; // already filtered to overdue only
+    reportHtml = `
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="metric" style="background:#FCEBEB"><div class="metric-label">Suppliers Affected</div><div class="metric-val" style="color:#A32D2D">${[...new Set(arrears.map(function(i){return i.po_id;}))].length}</div><div class="metric-sub">POs with overdue items</div></div>
+      <div class="metric c-amber"><div class="metric-label">Items in Arrears</div><div class="metric-val">${arrears.length}</div><div class="metric-sub">past required delivery date</div></div>
+      <div class="metric c-blue"><div class="metric-label">Units Outstanding</div><div class="metric-val">${arrears.reduce(function(a,i){return a+i.ordered-i.received;},0)}</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#A32D2D"><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">PO</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Supplier</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Item</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Ordered</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Received</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Outstanding</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Original Delivery</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Revised Delivery</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Comment</th><th style="padding:8px 10px;color:white;font-size:11px;font-weight:500"></th></tr></thead>
+        <tbody>${arrRows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  else if (activeReport === 'in_storage') {
+    reportTitle = 'Stock in Storage';
+    var storRows = inStoreItems.length ? inStoreItems.map(function(i) {
+      var available = i.putaway - i.issued;
+      var lastPutaway = appState.txns.filter(function(t){return t.type==='putaway' && t.item_id===i.item_id && t.location;}).sort(function(a,b){return b.date.localeCompare(a.date);})[0];
+      var location = lastPutaway ? lastPutaway.location : '--';
+      return '<tr><td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px"><strong>' + i.po_id + '</strong></td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + i.supplier + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + i.description + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + i.uom + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;font-weight:600;color:#0F6E56">' + available + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + location + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + i.putaway + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;color:#534AB7">' + i.issued + '</td></tr>';
+    }).join('') : '<tr><td colspan="8" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No stock currently in storage</td></tr>';
+
+    reportHtml = `
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="metric c-teal"><div class="metric-label">Items in Storage</div><div class="metric-val">${inStoreItems.length}</div></div>
+      <div class="metric c-blue"><div class="metric-label">Total Units Available</div><div class="metric-val">${inStoreItems.reduce(function(a,i){return a+i.putaway-i.issued;},0)}</div></div>
+      <div class="metric c-green"><div class="metric-label">Fully Issued Items</div><div class="metric-val">${allItems.filter(function(i){return i.issued>=i.ordered && i.ordered>0;}).length}</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#0F6E56"><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">PO</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Supplier</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Description</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">UOM</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Available</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Location</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Put Away</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Issued</th></tr></thead>
+        <tbody>${storRows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  else if (activeReport === 'issued') {
+    reportTitle = 'Issued to Contractor';
+    var contractors = {};
+    issuedItems.forEach(function(i) {
+      var txns = appState.txns.filter(function(t){return t.type==='issued' && t.item_id===i.item_id;});
+      txns.forEach(function(t) {
+        var con = t.contractor || 'Unknown';
+        if (!contractors[con]) contractors[con] = [];
+        contractors[con].push({item:i, txn:t});
+      });
+    });
+    var issHtml = '';
+    var contractorNames = Object.keys(contractors).sort();
+    if (contractorNames.length === 0) {
+      issHtml = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No items issued yet</td></tr>';
+    } else {
+      contractorNames.forEach(function(con) {
+        var entries = contractors[con];
+        var conTotal = entries.reduce(function(a,e){return a+e.txn.qty;},0);
+        issHtml += '<tr style="background:#f0ede8"><td colspan="7" style="padding:8px 12px;font-weight:600;font-size:13px;color:#0F6E56">' + con + ' <span style="font-weight:400;color:#888;font-size:12px">(' + entries.length + ' line(s), ' + conTotal + ' units total)</span></td></tr>';
+        entries.forEach(function(e) {
+          issHtml += '<tr><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;padding-left:20px">' + fmtDate(e.txn.date) + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px"><strong>' + e.item.po_id + '</strong></td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + e.item.description + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + e.item.uom + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;font-weight:600;color:#534AB7">' + e.txn.qty + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + (e.txn.location||'--') + '</td><td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + (e.txn.note||'--') + '</td></tr>';
+        });
+      });
+    }
+    reportHtml = `
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="metric c-green"><div class="metric-label">Contractors</div><div class="metric-val">${contractorNames.length}</div></div>
+      <div class="metric" style="background:#EEEDFE"><div class="metric-label">Items Issued</div><div class="metric-val" style="color:#534AB7">${issuedItems.length}</div></div>
+      <div class="metric c-teal"><div class="metric-label">Total Units Issued</div><div class="metric-val">${totalIssued}</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#534AB7"><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Date</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">PO</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Description</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">UOM</th><th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Qty</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">From Location</th><th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Note</th></tr></thead>
+        <tbody>${issHtml}</tbody>
+      </table>
+    </div>`;
+  }
+
+
+  else if (activeReport === 'invoices') {
+    reportTitle = 'Invoice Status Report';
+    var invReceived  = appState.pos.filter(function(po){return po.invoice_received;});
+    var invPaid      = appState.pos.filter(function(po){return po.invoice_paid;});
+    var invPending   = appState.pos.filter(function(po){return !po.invoice_received;});
+    var invRecNotPaid= appState.pos.filter(function(po){return po.invoice_received && !po.invoice_paid;});
+
+    var invRows = appState.pos.map(function(po) {
+      var tot = po.items.reduce(function(a,i){return a+i.ordered;},0);
+      var rec = po.items.reduce(function(a,i){return a+i.received;},0);
+      var status = getPOStatus(po);
+      var recStyle = po.invoice_received ? 'background:#EAF3DE;color:#3B6D11;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600' : 'background:#f0ede8;color:#888;padding:2px 8px;border-radius:4px;font-size:11px';
+      var paidStyle = po.invoice_paid ? 'background:#EAF3DE;color:#3B6D11;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600' : 'background:#f0ede8;color:#888;padding:2px 8px;border-radius:4px;font-size:11px';
+      return '<tr><td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px"><strong>' + po.po_id + '</strong></td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + po.supplier + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:12px;color:#888">' + (po.reference||'--') + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + fmtDate(po.date) + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + badge(status) + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + rec + '/' + tot + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;text-align:center"><span style="' + recStyle + '">' + (po.invoice_received ? 'Received' : 'Pending') + '</span></td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;text-align:center"><span style="' + paidStyle + '">' + (po.invoice_paid ? 'Paid' : 'Pending') + '</span></td></tr>';
+    }).join('');
+
+    reportHtml = `
+    <div class="grid-4" style="margin-bottom:16px">
+      <div class="metric"><div class="metric-label">Total POs</div><div class="metric-val">${appState.pos.length}</div></div>
+      <div class="metric" style="background:#FCEBEB"><div class="metric-label">Invoice Pending</div><div class="metric-val" style="color:#A32D2D">${invPending.length}</div><div class="metric-sub">not yet received</div></div>
+      <div class="metric" style="background:#FAEEDA"><div class="metric-label">Received, Unpaid</div><div class="metric-val" style="color:#BA7517">${invRecNotPaid.length}</div><div class="metric-sub">awaiting payment</div></div>
+      <div class="metric" style="background:#EAF3DE"><div class="metric-label">Fully Paid</div><div class="metric-val" style="color:#3B6D11">${invPaid.length}</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#0F6E56">
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">PO</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Supplier</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Reference</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">PO Date</th>
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Delivery Status</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Received/Ordered</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Invoice Received</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Invoice Paid</th>
+        </tr></thead>
+        <tbody>${invRows||'<tr><td colspan="8"><div class="empty-state">No purchase orders</div></td></tr>'}</tbody>
+      </table>
+    </div>`;
+  }
+
+
+  else if (activeReport === 'suppliers') {
+    reportTitle = 'Supplier Summary Report';
+
+    // Build per-supplier data
+    var supplierMap = {};
+    appState.pos.forEach(function(po) {
+      var sup = po.supplier || 'Unknown';
+      if (!supplierMap[sup]) {
+        supplierMap[sup] = {
+          name: sup,
+          pos: [],
+          totalOrdered: 0, totalReceived: 0, totalPutaway: 0, totalIssued: 0,
+          posComplete: 0, posInProgress: 0, posPending: 0,
+          invoiceReceived: 0, invoicePaid: 0,
+          linesInArrears: 0, unitsInArrears: 0
+        };
+      }
+      var d = supplierMap[sup];
+      d.pos.push(po);
+      po.items.forEach(function(i) {
+        d.totalOrdered   += i.ordered;
+        d.totalReceived  += i.received;
+        d.totalPutaway   += i.putaway;
+        d.totalIssued    += i.issued;
+        if (i.received < i.ordered && po.edd && po.edd < todayStr) {
+          d.linesInArrears++;
+          d.unitsInArrears += (i.ordered - i.received);
+        }
+      });
+      var st = getPOStatus(po);
+      if (st === 'complete') d.posComplete++;
+      else if (st === 'pending') d.posPending++;
+      else d.posInProgress++;
+      if (po.invoice_received) d.invoiceReceived++;
+      if (po.invoice_paid) d.invoicePaid++;
+    });
+
+    var suppliers = Object.values(supplierMap).sort(function(a,b){return a.name.localeCompare(b.name);});
+
+    var supRows = suppliers.map(function(d) {
+      var pct = d.totalOrdered > 0 ? Math.round(d.totalReceived / d.totalOrdered * 100) : 0;
+      var hasArrears = d.linesInArrears > 0;
+      var allPaid = d.invoicePaid === d.pos.length;
+      var allInvReceived = d.invoiceReceived === d.pos.length;
+
+      return '<tr>' +
+        '<td style="padding:9px 10px;border-bottom:0.5px solid #eee;font-size:13px;font-weight:500">' + d.name + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + d.pos.length + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' +
+          '<div style="background:#e0e0e0;border-radius:3px;height:6px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px">' +
+            '<div style="background:#0F6E56;height:6px;width:' + pct + '%"></div>' +
+          '</div>' + pct + '%</td>' +
+        '<td style="padding:9px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center"><span style="background:#EAF3DE;color:#3B6D11;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">' + d.posComplete + '</span></td>' +
+        '<td style="padding:9px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + d.posInProgress + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' +
+          (hasArrears ? '<span style="background:#FCEBEB;color:#A32D2D;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">' + d.linesInArrears + ' lines / ' + d.unitsInArrears + ' units</span>' : '<span style="color:#3B6D11;font-size:12px">None</span>') +
+        '</td>' +
+        '<td style="padding:9px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' +
+          '<span style="background:' + (allInvReceived?'#EAF3DE':'#FAEEDA') + ';color:' + (allInvReceived?'#3B6D11':'#BA7517') + ';padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500">' +
+          d.invoiceReceived + ' / ' + d.pos.length + '</span></td>' +
+        '<td style="padding:9px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' +
+          '<span style="background:' + (allPaid?'#EAF3DE':'#FCEBEB') + ';color:' + (allPaid?'#3B6D11':'#A32D2D') + ';padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500">' +
+          d.invoicePaid + ' / ' + d.pos.length + '</span></td>' +
+      '</tr>';
+    }).join('');
+
+    // Summary metrics
+    var totalSuppliers = suppliers.length;
+    var suppliersWithArrears = suppliers.filter(function(d){return d.linesInArrears>0;}).length;
+    var suppliersAllPaid = suppliers.filter(function(d){return d.invoicePaid===d.pos.length&&d.pos.length>0;}).length;
+    var suppliersInvPending = suppliers.filter(function(d){return d.invoiceReceived<d.pos.length;}).length;
+
+    reportHtml = `
+    <div class="grid-4" style="margin-bottom:16px">
+      <div class="metric c-teal"><div class="metric-label">Suppliers</div><div class="metric-val">${totalSuppliers}</div></div>
+      <div class="metric" style="background:#FCEBEB"><div class="metric-label">Suppliers with Arrears</div><div class="metric-val" style="color:#A32D2D">${suppliersWithArrears}</div><div class="metric-sub">outstanding deliveries</div></div>
+      <div class="metric" style="background:#FAEEDA"><div class="metric-label">Invoice Pending</div><div class="metric-val" style="color:#BA7517">${suppliersInvPending}</div><div class="metric-sub">not all invoices received</div></div>
+      <div class="metric" style="background:#EAF3DE"><div class="metric-label">Fully Paid</div><div class="metric-val" style="color:#3B6D11">${suppliersAllPaid}</div><div class="metric-sub">all invoices paid</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#0F6E56">
+          <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Supplier</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Total POs</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Delivery Progress</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Complete</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">In Progress</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Arrears</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Invoice Received</th>
+          <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Invoice Paid</th>
+        </tr></thead>
+        <tbody>${supRows||'<tr><td colspan="8"><div class="empty-state">No suppliers found</div></td></tr>'}</tbody>
+      </table>
+    </div>`;
+  }
+
+
+  else if (activeReport === 'items') {
+    reportTitle = 'Item Schedule';
+    if (!appState.itemSearch) appState.itemSearch = '';
+    var isq = appState.itemSearch.toLowerCase();
+
+    var arrComments = appState.arrearComments || {};
+    var arrDates    = appState.arrearDates    || {};
+
+    // Build full item list with all required data
+    var schedItems = appState.pos.flatMap(function(po) {
+      return po.items.map(function(i) {
+        // Stock by location from transactions
+        var itemTxns = appState.txns.filter(function(t){ return t.item_id === i.item_id; });
+        var inReceiving = itemTxns.filter(function(t){ return t.type==='received'; }).reduce(function(a,t){ return a+t.qty; },0)
+                        - itemTxns.filter(function(t){ return t.type==='putaway'; }).reduce(function(a,t){ return a+t.qty; },0);
+        var inWarehouse = i.putaway - i.issued;
+        var issued      = i.issued;
+
+        // Last putaway location
+        var lastPutaway = itemTxns.filter(function(t){ return t.type==='putaway' && t.location; })
+                                   .sort(function(a,b){ return b.date.localeCompare(a.date); })[0];
+        var whLocation = lastPutaway ? lastPutaway.location : '--';
+
+        // Last goods-in location
+        var lastGI = itemTxns.filter(function(t){ return t.type==='received' && t.location; })
+                              .sort(function(a,b){ return b.date.localeCompare(a.date); })[0];
+        var giLocation = lastGI ? lastGI.location : '--';
+
+        // Revised delivery from arrears
+        var revisedDate = arrDates[i.item_id] || i.arrear_date || '';
+        var comment     = arrComments[i.item_id] || i.arrear_comment || '';
+
+        return {
+          po_id:      po.po_id,
+          supplier:   po.supplier,
+          reference:  po.reference || '',
+          orig_edd:   po.edd || '',
+          description: i.description,
+          uom:        i.uom,
+          item_id:    i.item_id,
+          ordered:    i.ordered,
+          received:   i.received,
+          outstanding: i.ordered - i.received,
+          putaway:    i.putaway,
+          issued:     i.issued,
+          inReceiving: Math.max(0, inReceiving),
+          inWarehouse: Math.max(0, inWarehouse),
+          issuedQty:  issued,
+          giLocation: giLocation,
+          whLocation: whLocation,
+          revisedDate: revisedDate,
+          comment:    comment,
+          status:     getItemStatus(i)
+        };
+      });
+    });
+
+    // Filter
+    if (isq) {
+      schedItems = schedItems.filter(function(i){
+        return i.po_id.toLowerCase().includes(isq) ||
+               i.supplier.toLowerCase().includes(isq) ||
+               i.description.toLowerCase().includes(isq) ||
+               (i.reference||'').toLowerCase().includes(isq);
+      });
+    }
+
+    var p = 'padding:7px 10px;border-bottom:0.5px solid #eee;font-size:12px';
+    var itemRows = schedItems.length ? schedItems.map(function(i) {
+      var overdueStyle = i.orig_edd && i.orig_edd < todayStr && i.outstanding > 0 ? 'color:#A32D2D;font-weight:600' : '';
+      return '<tr>'
+        + '<td style="' + p + '"><strong>' + i.po_id + '</strong></td>'
+        + '<td style="' + p + '">' + i.supplier + '</td>'
+        + '<td style="' + p + '">' + i.description + '</td>'
+        + '<td style="' + p + ';text-align:center;color:#888">' + i.uom + '</td>'
+        + '<td style="' + p + ';text-align:center">' + i.ordered + '</td>'
+        + '<td style="' + p + ';text-align:center;color:#0F6E56;font-weight:500">' + i.received + '</td>'
+        + '<td style="' + p + ';text-align:center;font-weight:600;color:' + (i.outstanding>0?'#BA7517':'#3B6D11') + '">' + (i.outstanding>0?i.outstanding:'--') + '</td>'
+        + '<td style="' + p + ';' + overdueStyle + '">' + (i.orig_edd?fmtDate(i.orig_edd):'--') + '</td>'
+        + '<td style="' + p + ';color:#185FA5">' + (i.revisedDate?fmtDate(i.revisedDate):'--') + '</td>'
+        + '<td style="' + p + ';text-align:center;color:#888">' + (i.inReceiving>0?i.inReceiving:'--') + (i.giLocation!=='--'&&i.inReceiving>0?' <span style="font-size:10px;color:#aaa">('+i.giLocation+')</span>':'') + '</td>'
+        + '<td style="' + p + ';text-align:center;color:#534AB7">' + (i.inWarehouse>0?i.inWarehouse:'--') + (i.whLocation!=='--'&&i.inWarehouse>0?' <span style="font-size:10px;color:#aaa">('+i.whLocation+')</span>':'') + '</td>'
+        + '<td style="' + p + ';text-align:center;color:#3B6D11">' + (i.issuedQty>0?i.issuedQty:'--') + '</td>'
+        + '<td style="' + p + '">' + badge(i.status) + '</td>'
+        + '<td style="' + p + ';color:#666;font-style:' + (i.comment?'normal':'italic') + '">' + (i.comment||'--') + '</td>'
+        + '</tr>';
+    }).join('') : '<tr><td colspan="14" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No items found</td></tr>';
+
+    var totalOrdered   = schedItems.reduce(function(a,i){return a+i.ordered;},0);
+    var totalReceived  = schedItems.reduce(function(a,i){return a+i.received;},0);
+    var totalOutstanding = schedItems.reduce(function(a,i){return a+i.outstanding;},0);
+    var pct = totalOrdered>0?Math.round(totalReceived/totalOrdered*100):0;
+
+    reportHtml = `
+    <div class="no-print" style="margin-bottom:12px">
+      <input class="search-bar" style="width:320px" placeholder="Search PO, supplier, item, reference..." value="${appState.itemSearch||''}"
+        oninput="appState.itemSearch=this.value;renderTab()">
+    </div>
+    <div class="grid-4" style="margin-bottom:16px">
+      <div class="metric c-teal"><div class="metric-label">Items</div><div class="metric-val">${schedItems.length}</div></div>
+      <div class="metric c-blue"><div class="metric-label">Total Ordered</div><div class="metric-val">${totalOrdered}</div></div>
+      <div class="metric c-green"><div class="metric-label">Delivered</div><div class="metric-val">${totalReceived}</div><div class="metric-sub">${pct}% of ordered</div></div>
+      <div class="metric c-amber"><div class="metric-label">Outstanding</div><div class="metric-val">${totalOutstanding}</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:1100px">
+        <thead>
+          <tr style="background:#0F6E56">
+            <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">PO</th>
+            <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Supplier</th>
+            <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Item Description</th>
+            <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">UOM</th>
+            <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Ordered</th>
+            <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Delivered</th>
+            <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Outstanding</th>
+            <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Initial Delivery</th>
+            <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Revised Delivery</th>
+            <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Receiving</th>
+            <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Warehouse</th>
+            <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;font-weight:500">Issued</th>
+            <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Status</th>
+            <th style="padding:8px 10px;text-align:left;color:white;font-size:11px;font-weight:500">Comment</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+    </div>`;
+  }
+
+
+  else if (activeReport === 'dashboard_charts') {
+    reportTitle = 'Project Dashboard';
+
+    // Compute all the data we need
+    var totalItems    = allItems.length;
+    var byStatus = {};
+    allItems.forEach(function(i) {
+      var s = getItemStatus(i); byStatus[s] = (byStatus[s]||0) + 1;
+    });
+
+    var deliveryPct = totalOrdered > 0 ? Math.round(totalReceived/totalOrdered*100) : 0;
+    var putawayPct  = totalPutaway > 0 && totalReceived > 0 ? Math.round(totalPutaway/totalReceived*100) : 0;
+    var issuedPct   = totalIssued > 0 && totalOrdered > 0 ? Math.round(totalIssued/totalOrdered*100) : 0;
+
+    // Supplier breakdown
+    var supData = {};
+    appState.pos.forEach(function(po) {
+      if (!supData[po.supplier]) supData[po.supplier] = {ordered:0, received:0};
+      po.items.forEach(function(i) {
+        supData[po.supplier].ordered   += i.ordered;
+        supData[po.supplier].received  += i.received;
+      });
+    });
+    var supNames = Object.keys(supData).sort();
+
+    // Status pie data
+    var statusPie = [
+      {label:'Awaiting Delivery', val:byStatus['pending']||0,      color:'#BA7517'},
+      {label:'Partially Received',val:byStatus['partial_received']||byStatus['partial']||0, color:'#185FA5'},
+      {label:'Goods In',          val:byStatus['received']||0,     color:'#0F6E56'},
+      {label:'Put Away',          val:byStatus['putaway']||0,      color:'#3B6D11'},
+      {label:'Partially Issued',  val:byStatus['partial_issued']||0,color:'#534AB7'},
+      {label:'Complete',          val:byStatus['complete']||0,     color:'#1D9E75'},
+    ].filter(function(d){return d.val>0;});
+
+    // Invoice status
+    var invReceived = appState.pos.filter(function(po){return po.invoice_received;}).length;
+    var invPaid     = appState.pos.filter(function(po){return po.invoice_paid;}).length;
+    var invTotal    = appState.pos.length;
+
+    // Overdue count
+    var overdueCount2 = allItems.filter(function(i){return i.received<i.ordered && i.po_edd && i.po_edd<todayStr;}).length;
+
+    // Weekly trend - last 8 weeks of deliveries
+    var weeklyData = [];
+    for (var w=7; w>=0; w--) {
+      var wStart = new Date();
+      wStart.setDate(wStart.getDate() - wStart.getDay() + 1 - w*7);
+      var wEnd = new Date(wStart); wEnd.setDate(wStart.getDate()+6);
+      var ws2 = wStart.toISOString().slice(0,10);
+      var we2 = wEnd.toISOString().slice(0,10);
+      var wRec = appState.txns.filter(function(t){return t.type==='received'&&t.date>=ws2&&t.date<=we2;}).reduce(function(a,t){return a+t.qty;},0);
+      var wIss = appState.txns.filter(function(t){return t.type==='issued'&&t.date>=ws2&&t.date<=we2;}).reduce(function(a,t){return a+t.qty;},0);
+      weeklyData.push({label: ws2.slice(5), received: wRec, issued: wIss});
+    }
+    var maxWeekly = Math.max(1, Math.max.apply(null, weeklyData.map(function(d){return Math.max(d.received,d.issued);})));
+
+    // Pie chart SVG generator
+    function makePie(data, cx, cy, r) {
+      var total = data.reduce(function(a,d){return a+d.val;},0);
+      if (!total) return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#eee"/>';
+      var angle = -Math.PI/2;
+      var paths = '';
+      data.forEach(function(d) {
+        var slice = (d.val/total)*Math.PI*2;
+        var x1=cx+Math.cos(angle)*r, y1=cy+Math.sin(angle)*r;
+        angle+=slice;
+        var x2=cx+Math.cos(angle)*r, y2=cy+Math.sin(angle)*r;
+        var large=slice>Math.PI?1:0;
+        paths+='<path d="M'+cx+','+cy+' L'+x1+','+y1+' A'+r+','+r+' 0 '+large+',1 '+x2+','+y2+' Z" fill="'+d.color+'" stroke="white" stroke-width="2"/>';
+      });
+      return paths;
+    }
+
+    // Donut chart SVG (delivery progress)
+    function makeDonut(pct, color, size) {
+      var r=size*0.38, c=size/2, circ=2*Math.PI*r;
+      var dash=circ*(pct/100), gap=circ-dash;
+      return '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#eee" stroke-width="'+size*0.12+'"/>'
+           + '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+size*0.12+'" '
+           + 'stroke-dasharray="'+dash+' '+gap+'" stroke-dashoffset="'+circ*0.25+'" stroke-linecap="round"/>'
+           + '<text x="'+c+'" y="'+(c+6)+'" text-anchor="middle" font-size="'+(size*0.2)+'" font-weight="700" fill="'+color+'" font-family="Segoe UI,system-ui,sans-serif">'+pct+'%</text>';
+    }
+
+    // Status pie SVG
+    var pieSVG = '<svg viewBox="0 0 200 200" width="180" height="180">' + makePie(statusPie,100,100,90) + '</svg>';
+
+    // Legend for pie
+    var pieLegend = statusPie.map(function(d){
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+        +'<div style="width:12px;height:12px;border-radius:3px;background:'+d.color+';flex-shrink:0"></div>'
+        +'<span style="font-size:12px;color:#555">'+d.label+'</span>'
+        +'<span style="font-size:12px;font-weight:600;color:#222;margin-left:auto">'+d.val+'</span>'
+        +'</div>';
+    }).join('');
+
+    // Supplier bar chart
+    var maxOrd = Math.max(1, Math.max.apply(null, supNames.map(function(s){return supData[s].ordered;})));
+    var supBars = supNames.map(function(s) {
+      var d = supData[s];
+      var recPct = Math.round(d.ordered>0?d.received/d.ordered*100:0);
+      var ordW = Math.round(d.ordered/maxOrd*100);
+      var recW = Math.round(d.received/maxOrd*100);
+      return '<div style="margin-bottom:14px">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        +'<span style="font-size:12px;font-weight:500;color:#333">'+s+'</span>'
+        +'<span style="font-size:12px;color:#888">'+d.received+'/'+d.ordered+' ('+recPct+'%)</span>'
+        +'</div>'
+        +'<div style="background:#f0ede8;border-radius:4px;height:10px;position:relative;overflow:hidden">'
+        +'<div style="position:absolute;top:0;left:0;height:100%;width:'+ordW+'%;background:#e0e0e0;border-radius:4px"></div>'
+        +'<div style="position:absolute;top:0;left:0;height:100%;width:'+recW+'%;background:#0F6E56;border-radius:4px;transition:width 0.4s"></div>'
+        +'</div>'
+        +'</div>';
+    }).join('');
+
+    // Weekly bar chart
+    var weekBars = weeklyData.map(function(d,idx) {
+      var recH = Math.round(d.received/maxWeekly*100);
+      var issH = Math.round(d.issued/maxWeekly*100);
+      var isLast = idx===weeklyData.length-1;
+      return '<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px">'
+        +'<div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:80px">'
+        +'<div style="flex:1;background:#0F6E56;border-radius:3px 3px 0 0;height:'+recH+'%;min-height:'+(d.received>0?'4':'0')+'px;' + (isLast?'opacity:1':'opacity:0.7') + '"></div>'
+        +'<div style="flex:1;background:#534AB7;border-radius:3px 3px 0 0;height:'+issH+'%;min-height:'+(d.issued>0?'4':'0')+'px;' + (isLast?'opacity:1':'opacity:0.7') + '"></div>'
+        +'</div>'
+        +'<span style="font-size:9px;color:#aaa;text-align:center">'+d.label+'</span>'
+        +'</div>';
+    }).join('');
+
+    // Invoice donut SVGs
+    var invRecPct  = invTotal>0?Math.round(invReceived/invTotal*100):0;
+    var invPaidPct = invTotal>0?Math.round(invPaid/invTotal*100):0;
+
+    reportHtml = `
+    <style>
+      .chart-card { background:white; border:0.5px solid rgba(0,0,0,0.08); border-radius:12px; padding:20px; margin-bottom:16px; }
+      .chart-title { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#888; margin-bottom:16px; }
+      .chart-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:16px; }
+      .chart-grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:16px; }
+      @media(max-width:700px){ .chart-grid-3,.chart-grid-2{grid-template-columns:1fr;} }
+    </style>
+
+    <!-- KPI Row -->
+    <div class="chart-grid-3">
+      <div class="chart-card" style="text-align:center">
+        <div class="chart-title">Delivery Progress</div>
+        <svg viewBox="0 0 120 120" width="120" height="120">${makeDonut(deliveryPct,'#0F6E56',120)}</svg>
+        <div style="font-size:12px;color:#888;margin-top:8px">${totalReceived} of ${totalOrdered} units</div>
+      </div>
+      <div class="chart-card" style="text-align:center">
+        <div class="chart-title">Put Away Rate</div>
+        <svg viewBox="0 0 120 120" width="120" height="120">${makeDonut(putawayPct,'#3B6D11',120)}</svg>
+        <div style="font-size:12px;color:#888;margin-top:8px">${totalPutaway} of ${totalReceived} received</div>
+      </div>
+      <div class="chart-card" style="text-align:center">
+        <div class="chart-title">Issue Rate</div>
+        <svg viewBox="0 0 120 120" width="120" height="120">${makeDonut(issuedPct,'#534AB7',120)}</svg>
+        <div style="font-size:12px;color:#888;margin-top:8px">${totalIssued} of ${totalOrdered} units</div>
+      </div>
+    </div>
+
+    <!-- Status Pie + Invoice Donuts -->
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">Items by Status</div>
+        <div style="display:flex;align-items:center;gap:24px">
+          <div style="flex-shrink:0">${pieSVG}</div>
+          <div style="flex:1">${pieLegend}</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Invoice Status</div>
+        <div style="display:flex;gap:24px;justify-content:center;align-items:center;height:calc(100% - 32px)">
+          <div style="text-align:center">
+            <svg viewBox="0 0 120 120" width="110" height="110">${makeDonut(invRecPct,'#BA7517',120)}</svg>
+            <div style="font-size:12px;color:#888;margin-top:6px">Invoices Received</div>
+            <div style="font-size:13px;font-weight:600;color:#333">${invReceived} / ${invTotal} POs</div>
+          </div>
+          <div style="text-align:center">
+            <svg viewBox="0 0 120 120" width="110" height="110">${makeDonut(invPaidPct,'#3B6D11',120)}</svg>
+            <div style="font-size:12px;color:#888;margin-top:6px">Invoices Paid</div>
+            <div style="font-size:13px;font-weight:600;color:#333">${invPaid} / ${invTotal} POs</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supplier Progress -->
+    <div class="chart-card" style="margin-bottom:16px">
+      <div class="chart-title">Delivery Progress by Supplier</div>
+      <div style="display:flex;gap:16px;font-size:11px;color:#888;margin-bottom:12px">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#0F6E56;border-radius:2px;margin-right:4px"></span>Received</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#e0e0e0;border-radius:2px;margin-right:4px"></span>Ordered</span>
+      </div>
+      ${supBars || '<div style="color:#aaa;font-size:13px;text-align:center;padding:20px">No supplier data</div>'}
+    </div>
+
+    <!-- Weekly Activity -->
+    <div class="chart-card">
+      <div class="chart-title">Weekly Activity — Last 8 Weeks</div>
+      <div style="display:flex;gap:16px;font-size:11px;color:#888;margin-bottom:12px">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#0F6E56;border-radius:2px;margin-right:4px"></span>Received</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#534AB7;border-radius:2px;margin-right:4px"></span>Issued</span>
+        ${overdueCount2>0?'<span style="margin-left:auto;background:#FCEBEB;color:#A32D2D;padding:2px 10px;border-radius:20px;font-weight:600">'+overdueCount2+' items overdue</span>':''}
+      </div>
+      <div style="display:flex;gap:4px;align-items:flex-end;padding:0 4px">
+        ${weekBars}
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="no-print">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="section-title">Reports</div>
+      <button class="btn btn-primary no-print" onclick="window.print()">&#128438; Print / Save as PDF</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;background:#f7f5f0;padding:6px;border-radius:8px">${tabHtml}</div>
+  </div>
+
+  <div class="print-header" style="margin-bottom:20px;border-bottom:2px solid #0F6E56;padding-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end">
+      <div><div style="font-size:20px;font-weight:700;color:#0F6E56">PhoenixMMS</div><div style="font-size:14px;color:#666;margin-top:2px">${reportTitle}</div></div>
+      <div style="text-align:right;font-size:12px;color:#888"><div>Week: ${weekStr}</div><div>Printed: ${fmtDate(todayStr)}</div></div>
+    </div>
+  </div>
+
+  ${reportHtml}`;
+}
+
+
+</script>
+
+<script>
+(function() {
+  // ---- ACCESS PASSWORDS ----
+  // Change these to your own passwords
+  var PW_ADMIN    = 'Phoenix2025';   // Full access
+  var PW_READONLY = 'ViewOnly2025';  // Read-only access
+  // --------------------------
+
+  function applyAccess(role) {
+    sessionStorage.setItem('pmms_role', role);
+    if (role === 'readonly') {
+      document.body.classList.add('readonly');
+      var badge = document.getElementById('access-badge');
+      if (badge) badge.innerHTML = '<span class="readonly-badge">View Only</span>';
+      var issueTab = document.getElementById('issue-tab');
+      if (issueTab) issueTab.style.display = 'none';
+    } else {
+      document.body.classList.remove('readonly');
+      var badge = document.getElementById('access-badge');
+      if (badge) badge.innerHTML = '';
+      var issueTab = document.getElementById('issue-tab');
+      if (issueTab) issueTab.style.display = '';
+    }
+  }
+
+  function showUrlStep() {
+    document.getElementById('pw-step').style.display = 'none';
+    document.getElementById('url-step').style.display = 'block';
+    var saved = localStorage.getItem('phoenix_mms_url');
+    if (saved) document.getElementById('script-url').value = saved;
+  }
+
+  function launch(url, role) {
+    localStorage.setItem('phoenix_mms_url', url);
+    window.scriptUrl = url;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    applyAccess(role || 'admin');
+    var _attempts = 0;
+    var _poll = setInterval(function() {
+      _attempts++;
+      if (typeof loadData === 'function') {
+        clearInterval(_poll);
+        loadData();
+      } else if (_attempts > 20) {
+        clearInterval(_poll);
+        document.getElementById('app').innerHTML = '<div style="padding:20px;color:#A32D2D">Error: App failed to initialise. Please refresh the page.</div>';
+      }
+    }, 100);
+  }
+
+  // Password button
+  document.getElementById('pw-btn').addEventListener('click', function() {
+    var v = document.getElementById('pw-input').value;
+    var err = document.getElementById('pw-error');
+    if (v === PW_ADMIN) {
+      sessionStorage.setItem('pmms', '1');
+      sessionStorage.setItem('pmms_role', 'admin');
+      showUrlStep();
+    } else if (v === PW_READONLY) {
+      sessionStorage.setItem('pmms', '1');
+      sessionStorage.setItem('pmms_role', 'readonly');
+      showUrlStep();
+    } else {
+      err.textContent = 'Incorrect password. Please try again.';
+      err.style.display = 'block';
+      document.getElementById('pw-input').value = '';
+    }
+  });
+  document.getElementById('pw-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('pw-btn').click();
+  });
+
+  // Connect button
+  document.getElementById('connect-btn').addEventListener('click', function() {
+    var url = document.getElementById('script-url').value.trim();
+    var err = document.getElementById('url-error');
+    if (!url) { err.textContent = 'Please paste your URL.'; err.style.display = 'block'; return; }
+    err.style.display = 'none';
+    launch(url, sessionStorage.getItem('pmms_role') || 'admin');
+  });
+  document.getElementById('script-url').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('connect-btn').click();
+  });
+
+  // Auto-boot if already authenticated this session
+  if (sessionStorage.getItem('pmms') === '1') {
+    var saved = localStorage.getItem('phoenix_mms_url');
+    var role = sessionStorage.getItem('pmms_role') || 'admin';
+    if (saved) {
+      launch(saved, role);
+    } else {
+      showUrlStep();
+    }
+  }
+})();
+</script>
+</body>
+</html>
