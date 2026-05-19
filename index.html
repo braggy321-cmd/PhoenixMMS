@@ -46,6 +46,14 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0ede8; colo
 .nav-status { font-size:11px; opacity:0.7; }
 .nav-refresh { background:rgba(255,255,255,0.15); border:none; color:white; padding:6px 12px; border-radius:5px; font-size:12px; cursor:pointer; }
 .nav-refresh:hover { background:rgba(255,255,255,0.25); }
+.nav-dropdown { position:relative; }
+.nav-dropdown-btn { background:rgba(255,255,255,0.15); border:none; color:white; padding:6px 12px; border-radius:5px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px; }
+.nav-dropdown-btn:hover { background:rgba(255,255,255,0.25); }
+.nav-dropdown-menu { display:none; position:absolute; right:0; top:calc(100% + 6px); background:white; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.15); min-width:180px; z-index:999; overflow:hidden; }
+.nav-dropdown-menu.open { display:block; }
+.nav-dropdown-item { display:block; width:100%; padding:11px 16px; background:none; border:none; text-align:left; font-size:13px; color:#333; cursor:pointer; white-space:nowrap; }
+.nav-dropdown-item:hover { background:#f5f5f5; }
+.nav-dropdown-divider { border:none; border-top:1px solid #eee; margin:4px 0; }
 
 .content { padding:20px; flex:1; }
 .card { background:white; border:0.5px solid rgba(0,0,0,0.1); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
@@ -62,6 +70,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0ede8; colo
 .metric.c-blue .metric-val { color:#185FA5; }
 .metric.c-green .metric-val { color:#3B6D11; }
 .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:500; }
+.readonly-badge { display:inline-block; padding:2px 9px; border-radius:4px; font-size:11px; font-weight:600; background:rgba(255,255,255,0.2); color:rgba(255,255,255,0.9); margin-left:8px; letter-spacing:0.3px; }
 .badge-pending  { background:#FAEEDA; color:#BA7517; }
 .badge-partial  { background:#E6F1FB; color:#185FA5; }
 .badge-partial_received { background:#FAEEDA; color:#BA7517; }
@@ -143,9 +152,10 @@ input:focus, select:focus { outline:none; border-color:#0F6E56; }
       <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">Material Management System</div>
     </div>
     <div id="pw-step">
-      <div style="font-size:13px;color:#666;margin-bottom:16px">Enter your password to continue.</div>
+      <div style="font-size:13px;color:#666;margin-bottom:16px">Enter your name and password to continue.</div>
+      <input type="text" id="user-input" placeholder="Your name" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;margin-bottom:10px;box-sizing:border-box">
       <input type="password" id="pw-input" placeholder="Password" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;margin-bottom:10px;box-sizing:border-box">
-      <div id="pw-error" style="color:#A32D2D;font-size:12px;margin-bottom:10px;display:none">Incorrect password.</div>
+      <div id="pw-error" style="color:#A32D2D;font-size:12px;margin-bottom:10px;display:none">Incorrect name or password.</div>
       <button id="pw-btn" style="width:100%;padding:11px;background:#0F6E56;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer">Unlock</button>
     </div>
     <div id="url-step" style="display:none">
@@ -160,7 +170,7 @@ input:focus, select:focus { outline:none; border-color:#0F6E56; }
 <!-- ── MAIN APP ── -->
 <div id="app">
   <div class="nav">
-    <div class="nav-brand">PhoenixMMS <span>Material Management</span><span id="access-badge"></span></div>
+    <div class="nav-brand">PhoenixMMS <span>Material Management</span><span id="access-badge"></span><span id="user-badge"></span></div>
     <div class="nav-tab active" onclick="setTab('dashboard')">Dashboard</div>
     <div class="nav-tab" onclick="setTab('pos')">Purchase Orders</div>
     <div class="nav-tab" onclick="setTab('goods-receiving')">Goods Receiving</div>
@@ -171,8 +181,18 @@ input:focus, select:focus { outline:none; border-color:#0F6E56; }
     <div class="nav-right">
       <span class="nav-status" id="sync-status">●&nbsp;Live</span>
       <button class="nav-refresh" onclick="loadData()">↻ Refresh</button>
-      <button class="nav-refresh" onclick="logout()">&#x2192; Log Out</button>
-      <button class="nav-refresh" onclick="disconnect()">&#9881; Reconnect</button>
+      <div class="nav-dropdown" id="nav-dropdown">
+        <button class="nav-dropdown-btn" onclick="toggleNavDropdown()">
+          <span id="nav-user-label">&#9881;</span> ▾
+        </button>
+        <div class="nav-dropdown-menu" id="nav-dropdown-menu">
+          <div style="padding:10px 16px 8px;font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.05em">Account</div>
+          <div id="nav-dropdown-user" style="padding:4px 16px 10px;font-size:13px;color:#333;font-weight:500;border-bottom:1px solid #eee"></div>
+          <button class="nav-dropdown-item" onclick="logout()">&#x2192;&nbsp; Log Out</button>
+          <hr class="nav-dropdown-divider">
+          <button class="nav-dropdown-item" onclick="disconnect()">&#9881;&nbsp; Reconnect to Different Sheet</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -190,7 +210,7 @@ input:focus, select:focus { outline:none; border-color:#0F6E56; }
 
 <script>
 var scriptUrl = '';
-var appState = { tab:'dashboard', pos:[], txns:[], search:'', arrearComments:{}, arrearDates:{} };
+var appState = { tab:'dashboard', pos:[], txns:[], search:'', arrearComments:{}, arrearDates:{}, dashShowAllPOs:false, logFilters:{ type:'all', range:'all', dateFrom:'', dateTo:'' } };
 function isReadOnly() { return sessionStorage.getItem('pmms_role') === 'readonly'; }
 function actionBtn(html) { return isReadOnly() ? '' : html; }
 
@@ -433,40 +453,70 @@ async function saveEditPO(poId) {
   const supplier  = document.getElementById('ep-supplier').value.trim();
   const date      = document.getElementById('ep-date').value;
   const reference = document.getElementById('ep-reference').value.trim();
+  const edd       = document.getElementById('ep-edd').value||'';
   if (!supplier) { showAlert('Supplier is required','error'); return; }
   const btn = document.getElementById('ep-save-btn');
   btn.disabled = true; btn.textContent = 'Saving...';
+
+  const errors = [];
+  let headerSaved = false;
+
+  // Save PO header
   try {
-    await sheetPost({ action:'editPO', po_id:poId, supplier, date, reference });
-    // Update line items
-    const po = appState.pos.find(p=>p.po_id===poId);
-    if (po) {
-      for (const item of po.items) {
-        const desc = document.getElementById('ei-desc-'+item.item_id)?.value.trim();
-        const uom  = document.getElementById('ei-uom-'+item.item_id)?.value;
-        const ord  = document.getElementById('ei-ord-'+item.item_id)?.value;
-        const edd  = document.getElementById('ei-edd-'+item.item_id)?.value;
-        if (desc !== undefined) {
-          await sheetPost({ action:'editItem', item_id:item.item_id, description:desc, uom, ordered:ord, edd });
+    await sheetPost({ action:'editPO', po_id:poId, supplier, date, reference, edd });
+    headerSaved = true;
+  } catch(e) {
+    btn.disabled=false; btn.textContent='Save Changes';
+    showAlert('Failed to save PO header: '+e.message,'error');
+    return;
+  }
+
+  // Update existing line items
+  const po = appState.pos.find(p=>p.po_id===poId);
+  if (po) {
+    for (const item of po.items) {
+      const desc = document.getElementById('ei-desc-'+item.item_id)?.value.trim();
+      const uom  = document.getElementById('ei-uom-'+item.item_id)?.value;
+      const ord  = document.getElementById('ei-ord-'+item.item_id)?.value;
+      const edd  = document.getElementById('ei-edd-'+item.item_id)?.value;
+      if (desc !== undefined) {
+        // Guard: ordered qty must not be less than already received
+        if (Number(ord) < Number(item.received)) {
+          btn.disabled=false; btn.textContent='Save Changes';
+          showAlert(`Cannot set ordered qty to ${ord} for "${item.description}" — ${item.received} units have already been received.`,'error');
+          return;
         }
-      }
-      // Add new lines
-      const newDescs = [...document.querySelectorAll('.ep-new-desc')].map(i=>i.value.trim()).filter(Boolean);
-      const newUoms  = [...document.querySelectorAll('.ep-new-uom')].map(i=>i.value);
-      const newOrds  = [...document.querySelectorAll('.ep-new-ord')].map(i=>i.value);
-      const newEdds  = [...document.querySelectorAll('.ep-new-edd')].map(i=>i.value);
-      for (let i=0;i<newDescs.length;i++) {
-        if (newDescs[i] && Number(newOrds[i])>0) {
-          await sheetPost({ action:'addItem', po_id:poId, description:newDescs[i], uom:newUoms[i]||'EA', ordered:newOrds[i], edd:newEdds[i]||'' });
+        try {
+          await sheetPost({ action:'editItem', item_id:item.item_id, description:desc, uom, ordered:ord, edd });
+        } catch(e) {
+          errors.push(`Line item "${item.description}": ${e.message}`);
         }
       }
     }
-    closeModal();
-    await loadData(true);
+
+    // Add new lines
+    const newDescs = [...document.querySelectorAll('.ep-new-desc')].map(i=>i.value.trim()).filter(Boolean);
+    const newUoms  = [...document.querySelectorAll('.ep-new-uom')].map(i=>i.value);
+    const newOrds  = [...document.querySelectorAll('.ep-new-ord')].map(i=>i.value);
+    const newEdds  = [...document.querySelectorAll('.ep-new-edd')].map(i=>i.value);
+    for (let i=0;i<newDescs.length;i++) {
+      if (newDescs[i] && Number(newOrds[i])>0) {
+        try {
+          await sheetPost({ action:'addItem', po_id:poId, description:newDescs[i], uom:newUoms[i]||'EA', ordered:newOrds[i], edd:newEdds[i]||'' });
+        } catch(e) {
+          errors.push(`New line "${newDescs[i]}": ${e.message}`);
+        }
+      }
+    }
+  }
+
+  // Always close and reload if header saved — show any line errors as a warning
+  closeModal();
+  await loadData(true);
+  if (errors.length) {
+    showAlert(`PO header saved, but ${errors.length} line item(s) failed:\n${errors.join('\n')}`, 'error');
+  } else {
     showAlert('PO updated successfully');
-  } catch(e) {
-    btn.disabled=false; btn.textContent='Save Changes';
-    showAlert('Error: '+e.message,'error');
   }
 }
 
@@ -478,7 +528,7 @@ function addEditPOLine() {
     +'<div class="form-group"><label>UOM</label><select class="ep-new-uom"><option>EA</option><option>MTR</option><option>KG</option><option>BOX</option><option>SET</option><option>REEL</option><option>LOT</option></select></div>'
     +'<div class="form-group"><label>Qty</label><input class="ep-new-ord" type="number" min="1" value="1"></div>'
     +'<div class="form-group"><label>Req. Delivery</label><input class="ep-new-edd" type="date"></div>'
-    +'<div style="padding-top:22px"><button class="btn btn-sm" style="background:#FCEBEB;color:#A32D2D;border:none" onclick="this.parentElement.parentElement.remove()emove</button></div>';
+    +'<div style="padding-top:22px"><button class="btn btn-sm" style="background:#FCEBEB;color:#A32D2D;border:none" onclick="this.parentElement.parentElement.remove()">&times;</button></div>';
   container.appendChild(div);
 }
 
@@ -488,6 +538,19 @@ function disconnect() {
   localStorage.removeItem('phoenix_mms_url'); sessionStorage.removeItem('pmms_cache');
   location.reload();
 }
+
+function toggleNavDropdown() {
+  const menu = document.getElementById('nav-dropdown-menu');
+  menu.classList.toggle('open');
+}
+
+document.addEventListener('click', function(e) {
+  const dd = document.getElementById('nav-dropdown');
+  if (dd && !dd.contains(e.target)) {
+    const menu = document.getElementById('nav-dropdown-menu');
+    if (menu) menu.classList.remove('open');
+  }
+});
 
 function logout() {
   // Clear session auth but keep the URL so reconnect is instant
@@ -530,7 +593,7 @@ function renderDashboard() {
   // Each item counted in exactly one stage -- the furthest it has NOT yet completed
   // Outstanding: nothing received yet OR still short on delivery
   const pnOutstanding = allItems.filter(i => i.received < i.ordered).length;
-  const pnInArrears   = allItems.filter(i => i.received < i.ordered && i.po_edd && i.po_edd < today()).length;
+  const pnInArrears   = allItems.filter(i => i.received < i.ordered && i.edd && i.edd < today()).length;
   // Goods In: something received but not yet fully put away
   const pnInGI        = allItems.filter(i => i.received > 0 && i.received > i.putaway).length;
   // In Store: something put away but not yet fully issued
@@ -542,13 +605,23 @@ function renderDashboard() {
   const inGI = totRec - totPut;
   const inStore = totPut - totIss;
 
-  const poRows = appState.pos.map(po => {
+  const showAllPOs = appState.dashShowAllPOs || false;
+  const todayStr2  = today();
+
+  const actionPOs = appState.pos.filter(po => {
+    const status = getPOStatus(po);
+    if (status === 'complete') return false;
+    return true; // anything not complete needs attention
+  });
+
+  const displayPOs = showAllPOs ? appState.pos : actionPOs;
+
+  const poRows = displayPOs.map(po => {
     const tot=po.items.reduce((a,i)=>a+i.ordered,0);
     const rec=po.items.reduce((a,i)=>a+i.received,0);
     const put=po.items.reduce((a,i)=>a+i.putaway,0);
     const iss=po.items.reduce((a,i)=>a+i.issued,0);
     const p=tot>0?Math.round(rec/tot*100):0;
-    const todayStr2 = today();
     let eddCell = '--';
     if (po.edd) {
       const overdue = po.edd < todayStr2 && getPOStatus(po) !== 'complete';
@@ -583,28 +656,64 @@ function renderDashboard() {
     <div class="metric c-green"><div class="metric-label">Issued to Contractor</div><div class="metric-val">${pnIssued}</div><div class="metric-sub">items &nbsp;.&nbsp; ${totIss} qty issued</div></div>
   </div>
   <div class="card">
-    <div class="section-header"><div class="card-title" style="margin:0">Purchase Order Status</div></div>
+    <div class="section-header">
+      <div class="card-title" style="margin:0">Purchase Order Status
+        <span style="font-size:12px;font-weight:400;color:#888;margin-left:8px">${showAllPOs ? appState.pos.length+' total' : actionPOs.length+' active / '+appState.pos.length+' total'}</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="appState.dashShowAllPOs=${!showAllPOs};renderTab()">${showAllPOs ? 'Show Active Only' : 'Show All POs'}</button>
+    </div>
     <table><thead><tr><th>PO</th><th>Supplier</th><th>Reference</th><th>Req. Delivery</th><th>Status</th><th>Delivery Progress</th><th>In Store (qty)</th><th>Issued (qty)</th><th></th></tr></thead>
-    <tbody>${poRows||'<tr><td colspan="8"><div class="empty-state">No purchase orders yet -- add one in the Purchase Orders tab</div></td></tr>'}</tbody></table>
+    <tbody>${poRows||'<tr><td colspan="9"><div class="empty-state" style="padding:32px"><div style="font-size:28px;margin-bottom:12px">📦</div><div style="font-size:14px;font-weight:500;color:#555;margin-bottom:8px">No active purchase orders</div><div style="font-size:13px;color:#aaa;margin-bottom:16px">All POs are complete, or none have been created yet.</div>${actionBtn(`<button class="btn btn-primary" onclick="setTab(\'pos\')">Go to Purchase Orders →</button>`)}</div></td></tr>'}</tbody></table>
   </div>
   <div class="grid-2">
     <div class="card"><div class="card-title">Recent Transactions</div><ul class="timeline">${tlItems||'<div class="empty-state">No transactions yet</div>'}</ul></div>
     <div class="card"><div class="card-title">Material Flow</div>
-      <table><thead><tr><th>Stage</th><th>Items</th><th>% of total</th></tr></thead><tbody>
-        <tr>
-          <td>${badge('pending')}</td>
-          <td>
-            ${pnOutstanding}
-            <div style="font-size:11px;margin-top:3px;font-weight:500;${pnInArrears > 0 ? 'color:#A32D2D' : 'color:#aaa'}">of which ${pnInArrears} in arrears</div>
-          </td>
-          <td>${allItems.length?Math.round(pnOutstanding/allItems.length*100):0}%</td>
-        </tr>
-        <tr><td>${badge('received')}</td><td>${pnInGI}</td><td>${allItems.length?Math.round(pnInGI/allItems.length*100):0}%</td></tr>
-        <tr><td>${badge('putaway')}</td><td>${pnInStore}</td><td>${allItems.length?Math.round(pnInStore/allItems.length*100):0}%</td></tr>
-        <tr><td>${badge('issued')}</td><td>${pnIssued}</td><td>${allItems.length?Math.round(pnIssued/allItems.length*100):0}%</td></tr>
-      </tbody></table>
-      <div style="margin-top:14px"><div class="progress-bar" style="height:10px"><div class="progress-fill" style="width:${pct}%"></div></div>
-      <div style="font-size:11px;color:#888;margin-top:4px">Overall delivery: ${pct}% received (${totRec}/${totOrd})</div></div>
+      <div style="overflow-x:auto">
+        <svg viewBox="0 0 520 130" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:320px;display:block">
+          <!-- Connector lines -->
+          <line x1="112" y1="52" x2="148" y2="52" stroke="#ddd" stroke-width="2"/>
+          <polygon points="148,47 158,52 148,57" fill="#ddd"/>
+          <line x1="242" y1="52" x2="278" y2="52" stroke="#ddd" stroke-width="2"/>
+          <polygon points="278,47 288,52 278,57" fill="#ddd"/>
+          <line x1="372" y1="52" x2="408" y2="52" stroke="#ddd" stroke-width="2"/>
+          <polygon points="408,47 418,52 408,57" fill="#ddd"/>
+
+          <!-- Stage 1: Outstanding -->
+          <rect x="2" y="20" width="110" height="64" rx="8" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
+          <text x="57" y="40" text-anchor="middle" font-size="10" fill="#92400E" font-family="Arial" font-weight="600">OUTSTANDING</text>
+          <text x="57" y="62" text-anchor="middle" font-size="22" fill="#B45309" font-family="Arial" font-weight="700">${pnOutstanding}</text>
+          <text x="57" y="76" text-anchor="middle" font-size="9.5" fill="#92400E" font-family="Arial">items · ${outstanding} qty</text>
+
+          <!-- Stage 2: Goods In -->
+          <rect x="158" y="20" width="110" height="64" rx="8" fill="#E6F1FB" stroke="#3B82F6" stroke-width="1.5"/>
+          <text x="213" y="40" text-anchor="middle" font-size="10" fill="#1E3A5F" font-family="Arial" font-weight="600">GOODS IN</text>
+          <text x="213" y="62" text-anchor="middle" font-size="22" fill="#185FA5" font-family="Arial" font-weight="700">${pnInGI}</text>
+          <text x="213" y="76" text-anchor="middle" font-size="9.5" fill="#1E3A5F" font-family="Arial">items · ${inGI} qty</text>
+
+          <!-- Stage 3: In Store -->
+          <rect x="288" y="20" width="110" height="64" rx="8" fill="#E6F4F2" stroke="#0F6E56" stroke-width="1.5"/>
+          <text x="343" y="40" text-anchor="middle" font-size="10" fill="#0F4033" font-family="Arial" font-weight="600">IN STORE</text>
+          <text x="343" y="62" text-anchor="middle" font-size="22" fill="#0F6E56" font-family="Arial" font-weight="700">${pnInStore}</text>
+          <text x="343" y="76" text-anchor="middle" font-size="9.5" fill="#0F4033" font-family="Arial">items · ${inStore} qty</text>
+
+          <!-- Stage 4: Issued -->
+          <rect x="418" y="20" width="100" height="64" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.5"/>
+          <text x="468" y="40" text-anchor="middle" font-size="10" fill="#2D2880" font-family="Arial" font-weight="600">ISSUED</text>
+          <text x="468" y="62" text-anchor="middle" font-size="22" fill="#534AB7" font-family="Arial" font-weight="700">${pnIssued}</text>
+          <text x="468" y="76" text-anchor="middle" font-size="9.5" fill="#2D2880" font-family="Arial">items · ${totIss} qty</text>
+
+          <!-- Arrears callout -->
+          ${pnInArrears > 0 ? `
+          <rect x="2" y="92" width="110" height="18" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="1"/>
+          <text x="57" y="104" text-anchor="middle" font-size="9" fill="#A32D2D" font-family="Arial" font-weight="600">⚠ ${pnInArrears} in arrears</text>
+          ` : ''}
+
+          <!-- Overall progress bar -->
+          <rect x="2" y="118" width="516" height="8" rx="4" fill="#eee"/>
+          <rect x="2" y="118" width="${Math.round(516 * pct / 100)}" height="8" rx="4" fill="#0F6E56"/>
+        </svg>
+      </div>
+      <div style="font-size:11px;color:#888;margin-top:6px;text-align:center">Overall delivery: <strong style="color:#0F6E56">${pct}%</strong> received &nbsp;·&nbsp; ${totRec} of ${totOrd} units</div>
     </div>
   </div>`;
 }
@@ -735,10 +844,10 @@ function renderGR() {
   <div class="metric c-teal"><div class="metric-label">GRNs Today</div><div class="metric-val">${appState.txns.filter(t=>t.type==='received'&&t.date===today()).length}</div></div></div>
   <div class="card"><div class="section-title" style="margin-bottom:14px">Items Awaiting Delivery</div>
   <table><thead><tr><th>PO</th><th>Supplier</th><th>Description</th><th>UOM</th><th>Expected Delivery</th><th>Ordered</th><th>Received</th><th>Outstanding</th><th></th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="9"><div class="empty-state">All items received</div></td></tr>'}</tbody></table></div>
+  <tbody>${rows||'<tr><td colspan="9"><div class="empty-state" style="padding:32px"><div style="font-size:28px;margin-bottom:12px">✅</div><div style="font-size:14px;font-weight:500;color:#555;margin-bottom:8px">All items received</div><div style="font-size:13px;color:#aaa">No outstanding deliveries — everything on order has been received.</div></div></td></tr>'}</tbody></table></div>
   <div class="card"><div class="card-title">Recent Goods Receipts</div>
   <table><thead><tr><th>Date</th><th>PO</th><th>Description</th><th>Qty</th><th>GI Location</th><th>Note</th></tr></thead>
-  <tbody>${tRows||'<tr><td colspan="6"><div class="empty-state">No receipts logged yet</div></td></tr>'}</tbody></table></div>`;
+  <tbody>${tRows||'<tr><td colspan="6"><div class="empty-state" style="padding:24px"><div style="font-size:13px;font-weight:500;color:#555;margin-bottom:6px">No receipts logged yet</div><div style="font-size:12px;color:#aaa">When a delivery arrives, use the table above to log a Goods Receipt.</div></div></td></tr>'}</tbody></table></div>`;
 }
 
 function renderWarehouse() {
@@ -751,13 +860,42 @@ function renderWarehouse() {
   </tr>`).join('');
   const recent=[...appState.txns].filter(t=>t.type==='putaway').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
   const tRows=recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td><strong>${t.po_id}</strong></td><td>${t.item_desc}</td><td>${t.qty}</td><td>${t.location||'--'}</td><td>${t.note||'--'}</td></tr>`).join('');
+
+  // Location summary — group put-away transactions by location
+  const putawayTxns = appState.txns.filter(t=>t.type==='putaway' && t.location);
+  const issuedTxns  = appState.txns.filter(t=>t.type==='issued');
+  const locMap = {};
+  putawayTxns.forEach(t => {
+    if (!locMap[t.location]) locMap[t.location] = { putaway:0, items:new Set() };
+    locMap[t.location].putaway += t.qty;
+    locMap[t.location].items.add(t.item_id);
+  });
+  issuedTxns.forEach(t => {
+    // subtract issued qty from the location it was put away in
+    const putTxn = [...putawayTxns].filter(p=>p.item_id===t.item_id && p.location).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    if (putTxn && locMap[putTxn.location]) locMap[putTxn.location].putaway -= t.qty;
+  });
+  const locRows = Object.entries(locMap)
+    .filter(([,v])=>v.putaway>0)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([loc,v])=>`<tr>
+      <td style="font-weight:500;color:#185FA5">${loc}</td>
+      <td style="text-align:center">${v.items.size}</td>
+      <td style="text-align:center;font-weight:600;color:#0F6E56">${v.putaway}</td>
+    </tr>`).join('');
+
   return `
   <div class="grid-3"><div class="metric c-blue"><div class="metric-label">Lines in Goods In</div><div class="metric-val">${awaiting.length}</div></div>
   <div class="metric c-teal"><div class="metric-label">Qty to Put Away</div><div class="metric-val">${awaiting.reduce((a,i)=>a+i.received-i.putaway,0)}</div></div>
   <div class="metric c-green"><div class="metric-label">Put-Aways Today</div><div class="metric-val">${appState.txns.filter(t=>t.type==='putaway'&&t.date===today()).length}</div></div></div>
-  <div class="card"><div class="section-title" style="margin-bottom:14px">Items in Goods In -- Awaiting Put-Away</div>
-  <table><thead><tr><th>PO</th><th>Description</th><th>UOM</th><th>Received</th><th>Put Away</th><th>To Put Away</th><th></th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="7"><div class="empty-state">All received items are put away</div></td></tr>'}</tbody></table></div>
+  <div class="grid-2">
+    <div class="card"><div class="section-title" style="margin-bottom:14px">Items in Goods In — Awaiting Put-Away</div>
+    <table><thead><tr><th>PO</th><th>Description</th><th>UOM</th><th>Received</th><th>Put Away</th><th>To Put Away</th><th></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="7"><div class="empty-state" style="padding:32px"><div style="font-size:28px;margin-bottom:12px">🏭</div><div style="font-size:14px;font-weight:500;color:#555;margin-bottom:8px">Nothing awaiting put-away</div><div style="font-size:13px;color:#aaa">Items appear here once goods have been received in the Goods Receiving tab.</div></div></td></tr>'}</tbody></table></div>
+    <div class="card"><div class="card-title">Location Summary</div>
+    <table><thead><tr><th>Location</th><th style="text-align:center">Line Items</th><th style="text-align:center">Qty in Store</th></tr></thead>
+    <tbody>${locRows||'<tr><td colspan="3"><div class="empty-state">No stock in warehouse yet</div></td></tr>'}</tbody></table></div>
+  </div>
   <div class="card"><div class="card-title">Recent Put-Away Transactions</div>
   <table><thead><tr><th>Date</th><th>PO</th><th>Description</th><th>Qty</th><th>Location</th><th>Note</th></tr></thead>
   <tbody>${tRows||'<tr><td colspan="6"><div class="empty-state">No put-aways logged yet</div></td></tr>'}</tbody></table></div>`;
@@ -786,37 +924,116 @@ function renderIssue() {
     </tr>`;
   }).join('');
 
+  // Location summary for issue tab — group available stock by location
+  const issLocMap = {};
+  avail.forEach(i => {
+    const loc = getLocation(i.item_id);
+    if (!issLocMap[loc]) issLocMap[loc] = { lines:0, qty:0 };
+    issLocMap[loc].lines++;
+    issLocMap[loc].qty += i.putaway - i.issued;
+  });
+  const issLocRows = Object.entries(issLocMap)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([loc,v])=>`<tr>
+      <td style="font-weight:500;color:#185FA5">${loc}</td>
+      <td style="text-align:center">${v.lines}</td>
+      <td style="text-align:center;font-weight:600;color:#3B6D11">${v.qty}</td>
+    </tr>`).join('');
+
   const recent=[...appState.txns].filter(t=>t.type==='issued').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
   const tRows=recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td><strong>${t.po_id}</strong></td><td>${t.item_desc}</td><td>${t.qty}</td><td>${t.location||'--'}</td><td>${t.contractor||'--'}</td><td>${t.note||'--'}</td></tr>`).join('');
   return `
   <div class="grid-3"><div class="metric c-green"><div class="metric-label">Lines Available</div><div class="metric-val">${avail.length}</div></div>
   <div class="metric c-teal"><div class="metric-label">Qty Available</div><div class="metric-val">${avail.reduce((a,i)=>a+i.putaway-i.issued,0)}</div></div>
   <div class="metric c-amber"><div class="metric-label">Issues Today</div><div class="metric-val">${appState.txns.filter(t=>t.type==='issued'&&t.date===today()).length}</div></div></div>
-  <div class="card"><div class="section-title" style="margin-bottom:14px">Stock Available for Issue</div>
-  <table><thead><tr><th>PO</th><th>Description</th><th>UOM</th><th>Warehouse Location</th><th>In Store</th><th>Issued</th><th>Available</th><th></th></tr></thead>
-  <tbody>${rows||'<tr><td colspan="8"><div class="empty-state">No stock available to issue</div></td></tr>'}</tbody></table></div>
+  <div class="grid-2">
+    <div class="card"><div class="section-title" style="margin-bottom:14px">Stock Available for Issue</div>
+    <table><thead><tr><th>PO</th><th>Description</th><th>UOM</th><th>Warehouse Location</th><th>In Store</th><th>Issued</th><th>Available</th><th></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="8"><div class="empty-state" style="padding:32px"><div style="font-size:28px;margin-bottom:12px">🚚</div><div style="font-size:14px;font-weight:500;color:#555;margin-bottom:8px">No stock available to issue</div><div style="font-size:13px;color:#aaa">Items appear here once they have been received and put away in the warehouse.</div></div></td></tr>'}</tbody></table></div>
+    <div class="card"><div class="card-title">Stock by Location</div>
+    <table><thead><tr><th>Location</th><th style="text-align:center">Line Items</th><th style="text-align:center">Qty Available</th></tr></thead>
+    <tbody>${issLocRows||'<tr><td colspan="3"><div class="empty-state">No stock available</div></td></tr>'}</tbody></table></div>
+  </div>
   <div class="card"><div class="card-title">Recent Issues to Contractor</div>
   <table><thead><tr><th>Date</th><th>PO</th><th>Description</th><th>Qty</th><th>From Location</th><th>Contractor</th><th>Note</th></tr></thead>
   <tbody>${tRows||'<tr><td colspan="7"><div class="empty-state">No issues logged yet</div></td></tr>'}</tbody></table></div>`;
 }
 
 function renderLog() {
-  const q=appState.search.toLowerCase();
-  const filtered=[...appState.txns].filter(t=>!q||t.item_desc.toLowerCase().includes(q)||t.po_id.toLowerCase().includes(q)||(t.contractor||'').toLowerCase().includes(q)).sort((a,b)=>b.date.localeCompare(a.date));
-  const typeClass={received:'badge-received',putaway:'badge-putaway',issued:'badge-issued'};
-  const rows=filtered.map(t=>`<tr>
+  const q   = appState.search.toLowerCase();
+  const lf  = appState.logFilters;
+  const todayStr = today();
+
+  // Date range bounds
+  let dateFrom = lf.dateFrom || '';
+  let dateTo   = lf.dateTo   || '';
+  if (lf.range === 'today') {
+    dateFrom = dateTo = todayStr;
+  } else if (lf.range === 'week') {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1);
+    dateFrom = d.toISOString().slice(0,10);
+    dateTo   = todayStr;
+  } else if (lf.range === 'month') {
+    dateFrom = todayStr.slice(0,7) + '-01';
+    dateTo   = todayStr;
+  }
+
+  const filtered = [...appState.txns].filter(t => {
+    if (q && !t.item_desc.toLowerCase().includes(q) && !t.po_id.toLowerCase().includes(q) && !(t.contractor||'').toLowerCase().includes(q)) return false;
+    if (lf.type !== 'all' && t.type !== lf.type) return false;
+    if (dateFrom && t.date < dateFrom) return false;
+    if (dateTo   && t.date > dateTo)   return false;
+    return true;
+  }).sort((a,b) => b.date.localeCompare(a.date));
+
+  const typeClass = { received:'badge-received', putaway:'badge-putaway', issued:'badge-issued' };
+  const rows = filtered.map(t => `<tr>
     <td>${fmtDate(t.date)}</td>
     <td><span class="badge ${typeClass[t.type]||''}">${t.type}</span></td>
     <td><strong>${t.po_id}</strong></td>
     <td>${t.item_desc}</td><td>${t.qty}</td>
     <td>${t.location||'--'}</td><td>${t.contractor||'--'}</td><td>${t.note||'--'}</td>
   </tr>`).join('');
+
+  // Filter button helper
+  const rb = (label, key, val) => {
+    const active = lf[key] === val;
+    return `<button onclick="appState.logFilters['${key}']='${val}';${key==='range'&&val!=='custom'?"appState.logFilters.dateFrom='';appState.logFilters.dateTo='';":''}setContent(renderLog())" style="padding:5px 12px;border:1px solid ${active?'#0F6E56':'#ddd'};border-radius:5px;background:${active?'#0F6E56':'white'};color:${active?'white':'#555'};font-size:12px;cursor:pointer">${label}</button>`;
+  };
+
+  const customDateInputs = lf.range === 'custom' ? `
+    <input type="date" value="${lf.dateFrom}" onchange="appState.logFilters.dateFrom=this.value;setContent(renderLog())"
+      style="padding:5px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px">
+    <span style="font-size:12px;color:#888">to</span>
+    <input type="date" value="${lf.dateTo}" onchange="appState.logFilters.dateTo=this.value;setContent(renderLog())"
+      style="padding:5px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px">
+  ` : '';
+
   return `
-  <div class="section-header"><div class="section-title">Full Transaction Log (${filtered.length} records)</div>
-  <input class="search-bar" placeholder="Search item, PO, contractor..." value="${appState.search}" oninput="appState.search=this.value;setContent(renderLog())"></div>
-  <div class="card" style="padding:0;overflow:hidden"><table>
+  <div class="section-header">
+    <div class="section-title">Transaction Log <span style="font-size:13px;font-weight:400;color:#888">(${filtered.length} records)</span></div>
+    <input class="search-bar" placeholder="Search item, PO, contractor..." value="${appState.search}" oninput="appState.search=this.value;setContent(renderLog())">
+  </div>
+  <div class="card" style="padding:12px 16px;margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:1px solid #eee">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:12px;color:#888;font-weight:500">Type:</span>
+      ${rb('All','type','all')}
+      ${rb('Received','type','received')}
+      ${rb('Put Away','type','putaway')}
+      ${rb('Issued','type','issued')}
+      <span style="width:1px;height:20px;background:#eee;margin:0 4px"></span>
+      <span style="font-size:12px;color:#888;font-weight:500">Period:</span>
+      ${rb('All Time','range','all')}
+      ${rb('Today','range','today')}
+      ${rb('This Week','range','week')}
+      ${rb('This Month','range','month')}
+      ${rb('Custom','range','custom')}
+      ${customDateInputs}
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;border-top-left-radius:0;border-top-right-radius:0"><table>
     <thead><tr><th>Date</th><th>Type</th><th>PO</th><th>Description</th><th>Qty</th><th>Location</th><th>Contractor</th><th>Note</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="8"><div class="empty-state">No transactions found</div></td></tr>'}</tbody>
+    <tbody>${rows||'<tr><td colspan="8"><div class="empty-state" style="padding:32px"><div style="font-size:28px;margin-bottom:12px">📋</div><div style="font-size:14px;font-weight:500;color:#555;margin-bottom:8px">No transactions match your filters</div><div style="font-size:13px;color:#aaa">Try adjusting the type or date filters above, or clear your search.</div></div></td></tr>'}</tbody>
   </table></div>`;
 }
 
@@ -828,9 +1045,9 @@ function openModal(type, itemId='', poId='') {
   if (type === 'addPO') {
     mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
       <div class="modal-header"><div class="modal-title">Add Purchase Order</div><button class="close-btn" onclick="closeModal()">x</button></div>
-      <div class="form-row"><div class="form-group"><label>PO Number</label><input id="m-ponum" placeholder="PO-001"></div><div class="form-group"><label>Date</label><input id="m-date" type="date" value="${today()}"></div></div>
+      <div class="form-row"><div class="form-group"><label>PO Number</label><input id="m-ponum" placeholder="PO-001" oninput="(function(el){const exists=appState.pos.some(p=>p.po_id.toLowerCase()===el.value.trim().toLowerCase());el.style.borderColor=exists?'#A32D2D':'';el.title=exists?'This PO number already exists':'';})(this)"></div><div class="form-group"><label>Date</label><input id="m-date" type="date" value="${today()}"></div></div>
       <div class="form-row"><div class="form-group"><label>Supplier</label><input id="m-supplier" placeholder="Supplier name"></div><div class="form-group"><label>Reference / Project Code</label><input id="m-ref" placeholder="e.g. DC-PHASE3-CABLE"></div></div>
-      <div class="form-row"><div class="form-group" style="color:#888;font-size:12px;padding-top:8px">Delivery dates are set per line item below.</div></div>
+      <div class="form-row"><div class="form-group"><label>Expected Delivery Date <span style="font-weight:400;color:#aaa">(PO level — optional)</span></label><input id="m-edd" type="date"></div><div class="form-group"></div></div>
       <div style="margin:12px 0 8px;font-size:12px;font-weight:500;color:#888;border-top:0.5px solid #eee;padding-top:12px">LINE ITEMS</div>
       <div id="po-lines">
         <div class="form-row cols-4" style="margin-bottom:8px">
@@ -921,7 +1138,7 @@ if (type === 'editPO') {
       return `<div class="form-row" style="align-items:center;border-top:0.5px solid #eee;padding-top:10px">
         <div class="form-group" style="flex:3">
           <label>${item.description} <span style="color:#aaa;font-weight:400;font-size:11px">(${item.uom})</span></label>
-          <input id="ei-desc-${item.item_id}" value="${item.description.replace(/"/g,'&quot;')}" ${hasActivity?'':''}  style="width:100%">
+          <input id="ei-desc-${item.item_id}" value="${item.description.replace(/"/g,'&quot;')}" ${hasActivity?'readonly title="Description cannot be changed once activity exists"':''} style="width:100%${hasActivity?';background:#f5f5f5;color:#888;cursor:not-allowed':''}">
         </div>
         <div class="form-group">
           <label>UOM</label>
@@ -952,7 +1169,7 @@ if (type === 'editPO') {
       </div>
       <div class="form-row">
         <div class="form-group"><label>PO Date</label><input id="ep-date" type="date" value="${po.date||''}"></div>
-        <div class="form-group"></div>
+        <div class="form-group"><label>Expected Delivery Date <span style="font-weight:400;color:#aaa">(optional)</span></label><input id="ep-edd" type="date" value="${po.edd||''}"></div>
       </div>
 
       <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#0F6E56;margin:16px 0 10px">Line Items</div>
@@ -1055,6 +1272,25 @@ function parseCSV(text) {
   const missing = required.filter(r => !headers.includes(r));
   if (missing.length) throw new Error('Missing required columns: ' + missing.join(', '));
 
+  // Date validation helper — accepts YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY
+  function parseDate(val) {
+    if (!val || !val.trim()) return '';
+    const v = val.trim();
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? null : v;
+    }
+    // DD/MM/YYYY or DD-MM-YYYY
+    const m = v.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+    if (m) {
+      const iso = `${m[3]}-${m[2]}-${m[1]}`;
+      const d = new Date(iso);
+      return isNaN(d.getTime()) ? null : iso;
+    }
+    return null; // unrecognised format
+  }
+
   const col = h => headers.indexOf(h);
   const rows = lines.slice(1).map((line, idx) => {
     // Handle quoted fields with commas
@@ -1086,10 +1322,19 @@ function parseCSV(text) {
   const errors = [];
   rows.forEach(r => {
     if (!r.qty || r.qty <= 0) { errors.push('Row ' + r.lineNum + ': qty must be > 0 for "' + r.description + '"'); return; }
+
+    // Validate dates
+    const poDate  = parseDate(r.po_date);
+    const poEdd   = parseDate(r.edd);
+    const lineEdd = parseDate(r.line_edd);
+    if (poDate === null)  { errors.push('Row ' + r.lineNum + ': invalid po_date "' + r.po_date + '" — use YYYY-MM-DD or DD/MM/YYYY'); return; }
+    if (poEdd === null)   { errors.push('Row ' + r.lineNum + ': invalid required_delivery_date "' + r.edd + '" — use YYYY-MM-DD or DD/MM/YYYY'); return; }
+    if (lineEdd === null) { errors.push('Row ' + r.lineNum + ': invalid line_required_delivery_date "' + r.line_edd + '" — use YYYY-MM-DD or DD/MM/YYYY'); return; }
+
     if (!poMap[r.po_number]) {
-      poMap[r.po_number] = { po_id: r.po_number, supplier: r.supplier, date: r.po_date, reference: r.reference, edd: r.edd, items: [] };
+      poMap[r.po_number] = { po_id: r.po_number, supplier: r.supplier, date: poDate, reference: r.reference, edd: poEdd, items: [] };
     }
-    poMap[r.po_number].items.push({ item_id: uid(), description: r.description, uom: r.uom, ordered: r.qty, edd: r.line_edd || r.edd });
+    poMap[r.po_number].items.push({ item_id: uid(), description: r.description, uom: r.uom, ordered: r.qty, edd: lineEdd || poEdd });
   });
 
   // Check for duplicate PO numbers already in system
@@ -1172,8 +1417,12 @@ async function savePO() {
   const supplier = document.getElementById('m-supplier').value.trim();
   const ref     = document.getElementById('m-ref').value.trim();
   const date    = document.getElementById('m-date').value;
-  const edd     = '';
+  const edd     = document.getElementById('m-edd').value||'';
   if (!poId||!supplier) { alert('PO number and supplier are required'); return; }
+  if (appState.pos.some(p => p.po_id.toLowerCase() === poId.toLowerCase())) {
+    showAlert(`PO number "${poId}" already exists in the system. Please use a different number.`, 'error');
+    return;
+  }
   const descs = [...document.querySelectorAll('.li-desc')].map(i=>i.value.trim());
   const uoms  = [...document.querySelectorAll('.li-uom')].map(i=>i.value);
   const qtys  = [...document.querySelectorAll('.li-qty')].map(i=>parseInt(i.value)||0);
@@ -1200,6 +1449,7 @@ async function saveTransaction(type, itemId, poId, itemDesc) {
   const loc  = document.getElementById('m-loc')?.value||'';
   const note = document.getElementById('m-note')?.value||'';
   const contractor = document.getElementById('m-contractor')?.value||'';
+  const work_area  = document.getElementById('m-area')?.value||'';
   const po   = appState.pos.find(p=>p.po_id===poId);
   const item = po?.items.find(i=>i.item_id===itemId);
   if (!item) return;
@@ -1208,7 +1458,7 @@ async function saveTransaction(type, itemId, poId, itemDesc) {
   const btn = document.getElementById('txn-btn');
   btn.disabled=true; btn.innerHTML='<span class="spinner" style="border-top-color:white;width:14px;height:14px;border-width:2px;"></span> Saving...';
   try {
-    const res = await sheetPost({ action:'transaction', txn:{ txn_id:uid(), date, type:type==='receive'?'received':type==='issue'?'issued':type, po_id:poId, item_id:itemId, item_desc:itemDesc, qty, location:loc, contractor, note } });
+    const res = await sheetPost({ action:'transaction', txn:{ txn_id:uid(), date, type:type==='receive'?'received':type==='issue'?'issued':type, po_id:poId, item_id:itemId, item_desc:itemDesc, qty, location:loc, contractor, work_area, note } });
     if (!res.ok) throw new Error(res.error||'Save failed');
     closeModal();
     await loadData(true);
@@ -1253,7 +1503,7 @@ function renderReports() {
   var totalPutaway   = allItems.reduce(function(a,i){return a+i.putaway;},0);
   var totalIssued    = allItems.reduce(function(a,i){return a+i.issued;},0);
   var totalPct = totalOrdered>0?Math.round(totalReceived/totalOrdered*100):0;
-  var overdueItems   = allItems.filter(function(i){return i.po_edd && i.po_edd < todayStr && i.received < i.ordered;});
+  var overdueItems   = allItems.filter(function(i){return i.edd && i.edd < todayStr && i.received < i.ordered;});
   var inStoreItems   = allItems.filter(function(i){return i.putaway > i.issued;});
   var issuedItems    = allItems.filter(function(i){return i.issued > 0;});
   var completeCount  = appState.pos.filter(function(po){return getPOStatus(po)==='complete';}).length;
@@ -1298,15 +1548,15 @@ function renderReports() {
     }).join('') : '<tr><td colspan="5" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No issues this week</td></tr>';
 
     // Overdue items - undelivered with a required date in the past
-    var overdueItems = allItems.filter(function(i){
-      return i.received < i.ordered && i.po_edd && i.po_edd < todayStr;
-    }).sort(function(a,b){ return a.po_edd.localeCompare(b.po_edd); });
+    var weeklyOverdueItems = allItems.filter(function(i){
+      return i.received < i.ordered && i.edd && i.edd < todayStr;
+    }).sort(function(a,b){ return a.edd.localeCompare(b.edd); });
 
     var arrDatesW = appState.arrearDates || {};
     var arrCommentsW = appState.arrearComments || {};
 
-    var overdueRows = overdueItems.length ? overdueItems.map(function(i) {
-      var daysOverdue = Math.floor((new Date(todayStr) - new Date(i.po_edd)) / 86400000);
+    var overdueRows = weeklyOverdueItems.length ? weeklyOverdueItems.map(function(i) {
+      var daysOverdue = Math.floor((new Date(todayStr) - new Date(i.edd)) / 86400000);
       var revised = arrDatesW[i.item_id] || i.arrear_date || '';
       var comment = arrCommentsW[i.item_id] || i.arrear_comment || '';
       return '<tr>'
@@ -1314,7 +1564,7 @@ function renderReports() {
         + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + i.supplier + '</td>'
         + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + i.description + '</td>'
         + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;font-weight:600;color:#BA7517">' + (i.ordered - i.received) + '</td>'
-        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;color:#A32D2D;font-weight:600">' + fmtDate(i.po_edd) + '</td>'
+        + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;color:#A32D2D;font-weight:600">' + fmtDate(i.edd) + '</td>'
         + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center"><span style="background:#FCEBEB;color:#A32D2D;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">' + daysOverdue + ' days</span></td>'
         + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:13px;color:#185FA5">' + (revised ? fmtDate(revised) : '--') + '</td>'
         + '<td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-size:12px;color:#666;font-style:' + (comment ? 'normal' : 'italic') + '">' + (comment || '--') + '</td>'
@@ -1325,13 +1575,13 @@ function renderReports() {
     <div class="grid-4" style="margin-bottom:16px">
       <div class="metric c-teal"><div class="metric-label">Overall Delivery</div><div class="metric-val">${totalPct}%</div><div class="metric-sub">${totalReceived}/${totalOrdered} units</div></div>
       <div class="metric" style="background:#EAF3DE"><div class="metric-label">POs Complete</div><div class="metric-val" style="color:#3B6D11">${completeCount}</div><div class="metric-sub">of ${appState.pos.length} total</div></div>
-      <div class="metric" style="background:#FCEBEB"><div class="metric-label">Overdue Items</div><div class="metric-val" style="color:#A32D2D">${overdueItems.length}</div><div class="metric-sub">past required date</div></div>
+      <div class="metric" style="background:#FCEBEB"><div class="metric-label">Overdue Items</div><div class="metric-val" style="color:#A32D2D">${weeklyOverdueItems.length}</div><div class="metric-sub">past required date</div></div>
       <div class="metric c-blue"><div class="metric-label">In Storage</div><div class="metric-val">${inStoreItems.reduce(function(a,i){return a+i.putaway-i.issued;},0)}</div><div class="metric-sub">units available</div></div>
     </div>
 
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
       <div style="padding:12px 16px;background:#FCEBEB;border-bottom:1px solid #f5c6c6;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:#A32D2D">
-        Overdue Materials (${overdueItems.length} items)
+        Overdue Materials (${weeklyOverdueItems.length} items)
       </div>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="background:#fafaf8">
@@ -1450,19 +1700,19 @@ function renderReports() {
 
   else if (activeReport === 'arrears') {
     reportTitle = 'Arrears Report';
-    var arrears = allItems.filter(function(i){return i.received < i.ordered && i.po_edd && i.po_edd < todayStr;}).sort(function(a,b){
-      if (!a.po_edd && !b.po_edd) return 0;
-      if (!a.po_edd) return 1;
-      if (!b.po_edd) return -1;
-      return a.po_edd.localeCompare(b.po_edd);
+    var arrears = allItems.filter(function(i){return i.received < i.ordered && i.edd && i.edd < todayStr;}).sort(function(a,b){
+      if (!a.edd && !b.edd) return 0;
+      if (!a.edd) return 1;
+      if (!b.edd) return -1;
+      return a.edd.localeCompare(b.edd);
     });
     var arrComments = appState.arrearComments || {};
     var arrDates    = appState.arrearDates    || {};
     var p = 'padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px';
     var arrRows = arrears.length ? arrears.map(function(i) {
       var outstanding     = i.ordered - i.received;
-      var overdue         = i.po_edd && i.po_edd < todayStr;
-      var origEdd         = i.po_edd ? fmtDate(i.po_edd) : '--';
+      var overdue         = i.edd && i.edd < todayStr;
+      var origEdd         = i.edd ? fmtDate(i.edd) : '--';
       var origStyle       = overdue ? 'color:#A32D2D;font-weight:600' : '';
       var existingComment = arrComments[i.item_id] || (i.arrear_comment || '');
       var existingDate    = arrDates[i.item_id]    || (i.arrear_date    || '');
@@ -1510,7 +1760,7 @@ function renderReports() {
     var overdueArr = arrears; // already filtered to overdue only
     reportHtml = `
     <div class="grid-3" style="margin-bottom:16px">
-      <div class="metric" style="background:#FCEBEB"><div class="metric-label">Suppliers Affected</div><div class="metric-val" style="color:#A32D2D">${[...new Set(arrears.map(function(i){return i.po_id;}))].length}</div><div class="metric-sub">POs with overdue items</div></div>
+      <div class="metric" style="background:#FCEBEB"><div class="metric-label">POs Affected</div><div class="metric-val" style="color:#A32D2D">${[...new Set(arrears.map(function(i){return i.po_id;}))].length}</div><div class="metric-sub">POs with overdue items</div></div>
       <div class="metric c-amber"><div class="metric-label">Items in Arrears</div><div class="metric-val">${arrears.length}</div><div class="metric-sub">past required delivery date</div></div>
       <div class="metric c-blue"><div class="metric-label">Units Outstanding</div><div class="metric-val">${arrears.reduce(function(a,i){return a+i.ordered-i.received;},0)}</div></div>
     </div>
@@ -1908,7 +2158,7 @@ function renderReports() {
     var invTotal    = appState.pos.length;
 
     // Overdue count
-    var overdueCount2 = allItems.filter(function(i){return i.received<i.ordered && i.po_edd && i.po_edd<todayStr;}).length;
+    var overdueCount2 = allItems.filter(function(i){return i.received<i.ordered && i.edd && i.edd<todayStr;}).length;
 
     // Weekly trend - last 8 weeks of deliveries
     var weeklyData = [];
@@ -2102,14 +2352,38 @@ function renderReports() {
 
 <script>
 (function() {
-  // ---- ACCESS PASSWORDS ----
-  // Change these to your own passwords
-  var PW_ADMIN    = 'Phoenix2025';   // Full access
-  var PW_READONLY = 'ViewOnly2025';  // Read-only access
-  // --------------------------
+  // ---- USER ACCOUNTS ----
+  // Admin users: each has their own name and password
+  var ADMIN_USERS = [
+    { name: 'Richard Bragg', password: 'RB-Phx-2026#Mq' },
+    { name: 'Luis Orduno',   password: 'LO-Phx-2026#Xt' },
+  ];
+  // Shared read-only password (no username required)
+  var PW_READONLY = 'View-Phx-2026#Rk';
+  // -----------------------
 
-  function applyAccess(role) {
+  function applyAccess(role, userName) {
     sessionStorage.setItem('pmms_role', role);
+    if (userName) sessionStorage.setItem('pmms_user', userName);
+
+    // User badge in nav
+    var userBadge = document.getElementById('user-badge');
+    if (userBadge) {
+      userBadge.innerHTML = userName
+        ? '<span style="margin-left:8px;font-size:12px;color:rgba(255,255,255,0.75)">' + userName + '</span>'
+        : '';
+    }
+
+    // Nav dropdown user label
+    var navUserLabel = document.getElementById('nav-user-label');
+    if (navUserLabel) navUserLabel.textContent = userName || '⚙';
+    var navDropdownUser = document.getElementById('nav-dropdown-user');
+    if (navDropdownUser) {
+      navDropdownUser.textContent = userName
+        ? userName + (role === 'readonly' ? ' (View Only)' : ' (Admin)')
+        : role === 'readonly' ? 'View Only' : 'Admin';
+    }
+
     if (role === 'readonly') {
       document.body.classList.add('readonly');
       var badge = document.getElementById('access-badge');
@@ -2132,12 +2406,12 @@ function renderReports() {
     if (saved) document.getElementById('script-url').value = saved;
   }
 
-  function launch(url, role) {
+  function launch(url, role, userName) {
     localStorage.setItem('phoenix_mms_url', url);
     window.scriptUrl = url;
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    applyAccess(role || 'admin');
+    applyAccess(role || 'admin', userName || sessionStorage.getItem('pmms_user') || '');
     var _attempts = 0;
     var _poll = setInterval(function() {
       _attempts++;
@@ -2153,24 +2427,37 @@ function renderReports() {
 
   // Password button
   document.getElementById('pw-btn').addEventListener('click', function() {
-    var v = document.getElementById('pw-input').value;
-    var err = document.getElementById('pw-error');
-    if (v === PW_ADMIN) {
+    var name = (document.getElementById('user-input').value || '').trim();
+    var pw   = document.getElementById('pw-input').value;
+    var err  = document.getElementById('pw-error');
+
+    // Check admin users — name AND password must match
+    var adminMatch = ADMIN_USERS.find(function(u) {
+      return u.name.toLowerCase() === name.toLowerCase() && u.password === pw;
+    });
+
+    if (adminMatch) {
       sessionStorage.setItem('pmms', '1');
       sessionStorage.setItem('pmms_role', 'admin');
+      sessionStorage.setItem('pmms_user', adminMatch.name);
       showUrlStep();
-    } else if (v === PW_READONLY) {
+    } else if (pw === PW_READONLY) {
+      // Read-only: no username required
       sessionStorage.setItem('pmms', '1');
       sessionStorage.setItem('pmms_role', 'readonly');
+      sessionStorage.setItem('pmms_user', name || 'Viewer');
       showUrlStep();
     } else {
-      err.textContent = 'Incorrect password. Please try again.';
+      err.textContent = 'Incorrect name or password. Please try again.';
       err.style.display = 'block';
       document.getElementById('pw-input').value = '';
     }
   });
   document.getElementById('pw-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('pw-btn').click();
+  });
+  document.getElementById('user-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('pw-input').focus();
   });
 
   // Connect button
@@ -2187,10 +2474,11 @@ function renderReports() {
 
   // Auto-boot if already authenticated this session
   if (sessionStorage.getItem('pmms') === '1') {
-    var saved = localStorage.getItem('phoenix_mms_url');
-    var role = sessionStorage.getItem('pmms_role') || 'admin';
+    var saved    = localStorage.getItem('phoenix_mms_url');
+    var role     = sessionStorage.getItem('pmms_role') || 'admin';
+    var userName = sessionStorage.getItem('pmms_user') || '';
     if (saved) {
-      launch(saved, role);
+      launch(saved, role, userName);
     } else {
       showUrlStep();
     }
