@@ -1543,14 +1543,22 @@ function renderLog() {
     return true;
   }).sort((a,b) => b.date.localeCompare(a.date));
 
-  const typeClass = { received:'badge-received', putaway:'badge-putaway', issued:'badge-issued' };
-  const rows = filtered.map(t => `<tr>
-    <td>${fmtDate(t.date)}</td>
-    <td><span class="badge ${typeClass[t.type]||''}">${t.type}</span></td>
-    <td><strong>${t.po_id}</strong></td>
-    <td>${t.item_desc}</td><td>${t.qty}</td>
-    <td>${t.location||'--'}</td><td>${t.contractor||'--'}</td><td>${t.note||'--'}</td>
-  </tr>`).join('');
+  const typeClass = { received:'badge-received', putaway:'badge-putaway', issued:'badge-issued', transfer:'badge-partial', adjustment:'badge-pending' };
+  const rows = filtered.map(t => {
+    const isTransfer = t.type === 'transfer';
+    const locationCell = isTransfer
+      ? `${t.contractor||'—'} → <span style="color:#185FA5;font-weight:500">${t.location||'—'}</span>`
+      : (t.location||'--');
+    return `<tr>
+      <td>${fmtDate(t.date)}</td>
+      <td><span class="badge ${typeClass[t.type]||''}">${t.type}</span></td>
+      <td><strong>${t.po_id}</strong></td>
+      <td>${t.item_desc}</td><td>${t.qty}</td>
+      <td>${locationCell}</td>
+      <td>${isTransfer ? '—' : (t.contractor||'--')}</td>
+      <td>${t.note||'--'}</td>
+    </tr>`;
+  }).join('');
 
   // Filter button helper
   const rb = (label, key, val) => {
@@ -1578,6 +1586,7 @@ function renderLog() {
       ${rb('Received','type','received')}
       ${rb('Put Away','type','putaway')}
       ${rb('Issued','type','issued')}
+      ${rb('Transfer','type','transfer')}
       <span style="width:1px;height:20px;background:#eee;margin:0 4px"></span>
       <span style="font-size:12px;color:#888;font-weight:500">Period:</span>
       ${rb('All Time','range','all')}
