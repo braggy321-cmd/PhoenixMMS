@@ -2351,24 +2351,40 @@ function renderReports() {
 
   else if (activeReport === 'in_storage') {
     reportTitle = 'Stock in Storage';
-    var storRows = inStoreItems.length ? inStoreItems.map(function(i) {
-      var available = i.putaway - i.issued;
-      var lastPutaway = appState.txns.filter(function(t){return t.type==='putaway' && t.item_id===i.item_id && t.location;}).sort(function(a,b){return b.date.localeCompare(a.date);})[0];
-      var location = lastPutaway ? lastPutaway.location : '--';
-      return '<tr><td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px"><strong>' + i.po_id + '</strong></td>' +
-        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + i.supplier + '</td>' +
-        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + i.description + '</td>' +
-        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + i.uom + '</td>' +
-        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;font-weight:600;color:#0F6E56">' + available + '</td>' +
-        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + location + '</td>' +
-        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + i.putaway + '</td>' +
-        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;color:#534AB7">' + i.issued + '</td></tr>';
+
+    // Build from location balances so partial transfers show correctly
+    var storLocBal = getLocationBalances();
+    var storageRows = [];
+    appState.pos.forEach(function(po) {
+      po.items.forEach(function(i) {
+        var itemLocs = storLocBal[i.item_id] || {};
+        Object.keys(itemLocs).forEach(function(loc) {
+          var qty = itemLocs[loc];
+          if (qty > 0 && loc) {
+            storageRows.push({ po_id: po.po_id, supplier: po.supplier, description: i.description, uom: i.uom, putaway: i.putaway, issued: i.issued, location: loc, available: qty });
+          }
+        });
+      });
+    });
+
+    var totalAvailable = storageRows.reduce(function(a,r){return a+r.available;},0);
+    var uniqueItems = new Set(storageRows.map(function(r){return r.po_id+':'+r.description;})).size;
+
+    var storRows = storageRows.length ? storageRows.map(function(r) {
+      return '<tr><td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px"><strong>' + r.po_id + '</strong></td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + r.supplier + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">' + r.description + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + r.uom + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;font-weight:600;color:#0F6E56">' + r.available + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;color:#185FA5;font-weight:500">' + r.location + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center">' + r.putaway + '</td>' +
+        '<td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;text-align:center;color:#534AB7">' + r.issued + '</td></tr>';
     }).join('') : '<tr><td colspan="8" style="padding:20px;text-align:center;color:#aaa;font-size:13px">No stock currently in storage</td></tr>';
 
     reportHtml = `
     <div class="grid-3" style="margin-bottom:16px">
-      <div class="metric c-teal"><div class="metric-label">Items in Storage</div><div class="metric-val">${inStoreItems.length}</div></div>
-      <div class="metric c-blue"><div class="metric-label">Total Units Available</div><div class="metric-val">${inStoreItems.reduce(function(a,i){return a+i.putaway-i.issued;},0)}</div></div>
+      <div class="metric c-teal"><div class="metric-label">Lines in Storage</div><div class="metric-val">${storageRows.length}</div></div>
+      <div class="metric c-blue"><div class="metric-label">Total Units Available</div><div class="metric-val">${totalAvailable}</div></div>
       <div class="metric c-green"><div class="metric-label">Fully Issued Items</div><div class="metric-val">${allItems.filter(function(i){return i.issued>=i.ordered && i.ordered>0;}).length}</div></div>
     </div>
     <div class="card" style="padding:0;overflow:hidden">
