@@ -210,7 +210,7 @@ input:focus, select:focus { outline:none; border-color:#0F6E56; }
 
 <script>
 var scriptUrl = '';
-var appState = { tab:'dashboard', pos:[], txns:[], search:'', arrearComments:{}, arrearDates:{}, dashShowAllPOs:false, logFilters:{ type:'all', range:'all', dateFrom:'', dateTo:'' } };
+var appState = { tab:'dashboard', pos:[], txns:[], search:'', arrearComments:{}, arrearDates:{}, dashShowAllPOs:false, logFilters:{ type:'all', range:'all', dateFrom:'', dateTo:'' }, stocktakeFilter:'ALL', stocktakeItems:[], stocktakeHistory:[] };
 function isReadOnly() { return sessionStorage.getItem('pmms_role') === 'readonly'; }
 function actionBtn(html) { return isReadOnly() ? '' : html; }
 
@@ -850,6 +850,474 @@ function renderGR() {
   <tbody>${tRows||'<tr><td colspan="6"><div class="empty-state" style="padding:24px"><div style="font-size:13px;font-weight:500;color:#555;margin-bottom:6px">No receipts logged yet</div><div style="font-size:12px;color:#aaa">When a delivery arrives, use the table above to log a Goods Receipt.</div></div></td></tr>'}</tbody></table></div>`;
 }
 
+// ── STOCK ON HAND ────────────────────────────────────────────────────────────
+// Returns array of items currently on hand (in GI or warehouse), with location
+function getStockOnHand() {
+  const putawayTxns = appState.txns.filter(t => t.type === 'putaway');
+  const issuedTxns  = appState.txns.filter(t => t.type === 'issued');
+  const adjTxns     = appState.txns.filter(t => t.type === 'adjustment');
+  const transferTxns= appState.txns.filter(t => t.type === 'transfer');
+
+  return appState.pos.flatMap(po => po.items.map(i => {
+    // Net qty on hand = received - issued + adjustments
+    const adj = adjTxns.filter(t=>t.item_id===i.item_id).reduce((a,t)=>a+t.qty,0);
+    const qtyOnHand = i.received - i.issued + adj;
+    if (qtyOnHand <= 0) return null;
+
+    // Location: most recent putaway or transfer-in
+    const lastPutaway = [...putawayTxns, ...transferTxns.filter(t=>t.item_id===i.item_id)]
+      .filter(t=>t.item_id===i.item_id && t.location)
+      .sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const location = lastPutaway ? lastPutaway.location : '';
+
+    // In GI = received but not yet put away
+    const inGI = Math.max(0, i.received - i.putaway);
+    // In warehouse = putaway - issued + adjustments
+    const inWarehouse = Math.max(0, i.putaway - i.issued + adj);
+
+    return {
+      item_id: i.item_id,
+      po_id:   po.po_id,
+      supplier: po.supplier,
+      description: i.description,
+      uom:     i.uom,
+      location,
+      inGI,
+      inWarehouse,
+      qtyOnHand,
+      systemQty: qtyOnHand,
+    };
+  })).filter(Boolean);
+}
+
+// ── TRANSFER MODAL ────────────────────────────────────────────────────────────
+function openTransferModal(itemId, poId) {
+  if (isReadOnly()) return;
+  const po   = appState.pos.find(p=>p.po_id===poId);
+  const item = po?.items.find(i=>i.item_id===itemId);
+  if (!item) return;
+  const putawayTxns = appState.txns.filter(t=>t.type==='putaway'&&t.item_id===itemId&&t.location);
+  const currentLoc = putawayTxns.sort((a,b)=>b.date.localeCompare(a.date))[0]?.location||'';
+  const available = item.putaway - item.issued;
+  const mc = document.getElementById('modal-container');
+  mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-header"><div class="modal-title">Move Stock — Location Transfer</div><button class="close-btn" onclick="closeModal()">x</button></div>
+    <div style="background:#f7f5f0;border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px">
+      <div style="font-weight:500;margin-bottom:4px">${item.description}</div>
+      <div style="color:#888">PO: <strong>${po.po_id}</strong> &nbsp;.&nbsp; ${po.supplier} &nbsp;.&nbsp; UOM: ${item.uom}</div>
+      <div style="color:#888;margin-top:4px">In Store: ${available} ${item.uom} &nbsp;.&nbsp; Current Location: <strong>${currentLoc||'None'}</strong></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input id="tr-date" type="date" value="${today()}"></div>
+      <div class="form-group"><label>Quantity to Move (max ${available})</label><input id="tr-qty" type="number" min="1" max="${available}" value="${available}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>From Location</label><input id="tr-from" placeholder="Current location" value="${currentLoc}"></div>
+      <div class="form-group"><label>To Location</label><input id="tr-to" placeholder="New location e.g. WH-R4-A1"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px"><label>Reason / Note</label><input id="tr-note" placeholder="Optional reason for transfer"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="tr-btn" onclick="saveTransfer('${itemId}','${poId}','${item.description}',${available})">Confirm Transfer</button>
+    </div>
+  </div></div>`;
+}
+
+function openQuarantineRelease(itemId, poId) {
+  if (isReadOnly()) return;
+  const po   = appState.pos.find(p=>p.po_id===poId);
+  const item = po?.items.find(i=>i.item_id===itemId);
+  if (!item) return;
+  const putawayTxns = appState.txns.filter(t=>t.type==='putaway'&&t.item_id===itemId&&t.location);
+  const currentLoc = putawayTxns.sort((a,b)=>b.date.localeCompare(a.date))[0]?.location||'';
+  const available = item.putaway - item.issued;
+  const mc = document.getElementById('modal-container');
+  mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-header"><div class="modal-title">🔓 Release from Quarantine</div><button class="close-btn" onclick="closeModal()">x</button></div>
+    <div style="background:#FEF9F0;border:1px solid #F59E0B;border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px">
+      <div style="font-weight:500;margin-bottom:4px">${item.description}</div>
+      <div style="color:#888">PO: <strong>${po.po_id}</strong> &nbsp;.&nbsp; ${po.supplier} &nbsp;.&nbsp; UOM: ${item.uom}</div>
+      <div style="color:#A32D2D;font-weight:500;margin-top:4px">Currently in quarantine: <strong>${currentLoc}</strong> &nbsp;.&nbsp; Available: ${available} ${item.uom}</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input id="qr-date" type="date" value="${today()}"></div>
+      <div class="form-group"><label>Quantity to Release (max ${available})</label><input id="qr-qty" type="number" min="1" max="${available}" value="${available}"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:8px">
+      <label>Release Action</label>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+          <input type="radio" name="qr-action" value="move" checked onchange="document.getElementById('qr-move-fields').style.display='block';document.getElementById('qr-issue-fields').style.display='none'"> Move to warehouse location
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+          <input type="radio" name="qr-action" value="issue" onchange="document.getElementById('qr-move-fields').style.display='none';document.getElementById('qr-issue-fields').style.display='block'"> Issue directly to contractor
+        </label>
+      </div>
+    </div>
+    <div id="qr-move-fields">
+      <div class="form-group"><label>New Warehouse Location</label><input id="qr-to-loc" placeholder="e.g. WH-R3-B2"></div>
+    </div>
+    <div id="qr-issue-fields" style="display:none">
+      <div class="form-row">
+        <div class="form-group"><label>Contractor</label><input id="qr-contractor" placeholder="Contractor / company name"></div>
+        <div class="form-group"><label>Work Area</label><input id="qr-area" placeholder="e.g. Hall B Level 2"></div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px"><label>Reason for Release</label><input id="qr-note" placeholder="e.g. QC inspection passed, approved for use"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="qr-btn" style="background:#B45309" onclick="saveQuarantineRelease('${itemId}','${poId}','${item.description}',${available})">Confirm Release</button>
+    </div>
+  </div></div>`;
+}
+
+async function saveQuarantineRelease(itemId, poId, itemDesc, maxQty) {
+  const qty        = parseInt(document.getElementById('qr-qty')?.value)||0;
+  const date       = document.getElementById('qr-date')?.value||today();
+  const note       = document.getElementById('qr-note')?.value.trim()||'';
+  const action     = document.querySelector('input[name="qr-action"]:checked')?.value||'move';
+  const toLoc      = document.getElementById('qr-to-loc')?.value.trim()||'';
+  const contractor = document.getElementById('qr-contractor')?.value.trim()||'';
+  const workArea   = document.getElementById('qr-area')?.value.trim()||'';
+  const user       = sessionStorage.getItem('pmms_user')||'Admin';
+
+  if (qty <= 0 || qty > maxQty) { alert(`Quantity must be between 1 and ${maxQty}`); return; }
+  if (action === 'move' && !toLoc) { alert('Please enter a destination location'); return; }
+  if (action === 'issue' && !contractor) { alert('Please enter a contractor name'); return; }
+
+  const btn = document.getElementById('qr-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    if (action === 'move') {
+      // Transfer from quarantine to new location
+      const res = await sheetPost({ action:'transaction', txn:{
+        txn_id:uid(), date, type:'transfer', po_id:poId, item_id:itemId, item_desc:itemDesc,
+        qty, location:toLoc, from_location:'quarantine',
+        note:`Released from quarantine by ${user}. ${note}`
+      }});
+      if (!res.ok) throw new Error(res.error||'Save failed');
+      closeModal();
+      await loadData(true);
+      showAlert(`Released: ${qty} x ${itemDesc} moved from quarantine to ${toLoc}`);
+    } else {
+      // Direct issue to contractor
+      const res = await sheetPost({ action:'transaction', txn:{
+        txn_id:uid(), date, type:'issued', po_id:poId, item_id:itemId, item_desc:itemDesc,
+        qty, location:'quarantine', contractor, work_area:workArea,
+        note:`Direct issue from quarantine by ${user}. ${note}`
+      }});
+      if (!res.ok) throw new Error(res.error||'Save failed');
+      closeModal();
+      await loadData(true);
+      showAlert(`Issued: ${qty} x ${itemDesc} issued directly from quarantine to ${contractor}`);
+    }
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Confirm Release';
+    showAlert('Error: '+e.message, 'error');
+  }
+}
+
+async function saveTransfer(itemId, poId, itemDesc, maxQty) {
+  const qty  = parseInt(document.getElementById('tr-qty')?.value)||0;
+  const date = document.getElementById('tr-date')?.value||today();
+  const from = document.getElementById('tr-from')?.value.trim()||'';
+  const to   = document.getElementById('tr-to')?.value.trim()||'';
+  const note = document.getElementById('tr-note')?.value.trim()||'';
+  if (qty <= 0 || qty > maxQty) { alert(`Quantity must be between 1 and ${maxQty}`); return; }
+  if (!to) { alert('Please enter a destination location'); return; }
+  const btn = document.getElementById('tr-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res = await sheetPost({ action:'transaction', txn:{ txn_id:uid(), date, type:'transfer', po_id:poId, item_id:itemId, item_desc:itemDesc, qty, location:to, from_location:from, note } });
+    if (!res.ok) throw new Error(res.error||'Save failed');
+    closeModal();
+    await loadData(true);
+    showAlert(`Transfer saved: ${qty} x ${itemDesc} moved from ${from||'unknown'} to ${to}`);
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Confirm Transfer';
+    showAlert('Error: '+e.message, 'error');
+  }
+}
+
+// ── STOCKTAKE ─────────────────────────────────────────────────────────────────
+function renderStocktakeSheet() {
+  if (isReadOnly()) return '<div class="alert alert-error">Stocktake is admin only.</div>';
+  const stock = getStockOnHand();
+  const locations = ['ALL', 'NO LOCATION', ...new Set(stock.map(i=>i.location).filter(Boolean)).values()].sort((a,b)=>{
+    if (a==='ALL') return -1; if (b==='ALL') return 1;
+    if (a==='NO LOCATION') return -1; if (b==='NO LOCATION') return 1;
+    return a.localeCompare(b);
+  });
+  const filter = appState.stocktakeFilter || 'ALL';
+  const filtered = filter === 'ALL' ? stock
+    : filter === 'NO LOCATION' ? stock.filter(i=>!i.location)
+    : stock.filter(i=>i.location === filter);
+
+  const locButtons = locations.map(l => {
+    const active = l === filter;
+    return `<button onclick="appState.stocktakeFilter='${l}';renderTab()" style="padding:5px 12px;border:1px solid ${active?'#0F6E56':'#ddd'};border-radius:5px;background:${active?'#0F6E56':'white'};color:${active?'white':'#555'};font-size:12px;cursor:pointer">${l}</button>`;
+  }).join('');
+
+  const rows = filtered.map((i,idx) => `<tr>
+    <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;color:#888">${idx+1}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px"><strong>${i.po_id}</strong></td>
+    <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px">${i.description}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;color:#888;text-align:center">${i.uom}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;color:#185FA5;font-weight:500;text-align:center">${i.location||'—'}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;font-weight:600;text-align:center">${i.systemQty}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid #eee;border-right:2px solid #ddd;text-align:center;min-width:80px">&nbsp;</td>
+  </tr>`).join('');
+
+  return `
+  <div class="no-print" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="section-title" style="margin:0">Stocktake / Inventory Audit</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="appState.activeReport='stocktake_entry';renderTab()">📋 Enter Count Results</button>
+        <button class="btn btn-secondary" onclick="appState.activeReport='stocktake_history';renderTab()">🕐 History</button>
+        <button class="btn btn-primary" onclick="window.print()">🖨 Print Count Sheet</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:12px;color:#888;font-weight:500">Filter by location:</span>
+      ${locButtons}
+    </div>
+  </div>
+
+  <div class="print-header" style="margin-bottom:16px;border-bottom:2px solid #0F6E56;padding-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end">
+      <div><div style="font-size:18px;font-weight:700;color:#0F6E56">PhoenixMMS — Stocktake Count Sheet</div>
+      <div style="font-size:12px;color:#666;margin-top:2px">Location: ${filter} &nbsp;·&nbsp; Generated: ${fmtDate(today())} &nbsp;·&nbsp; Items: ${filtered.length}</div></div>
+      <div style="font-size:12px;color:#888;text-align:right">Counter: _________________ &nbsp;&nbsp; Date: _________________</div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#0F6E56">
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;width:40px">#</th>
+        <th style="padding:8px 10px;text-align:left;color:white;font-size:11px">PO</th>
+        <th style="padding:8px 10px;text-align:left;color:white;font-size:11px">Description</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px">UOM</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px">Location</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px">System Qty</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;min-width:100px">Count Qty ✎</th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa">No stock on hand for this location</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderStocktakeEntry() {
+  if (isReadOnly()) return '<div class="alert alert-error">Stocktake is admin only.</div>';
+  const stock = getStockOnHand();
+  const filter = appState.stocktakeFilter || 'ALL';
+  const filtered = filter === 'ALL' ? stock
+    : filter === 'NO LOCATION' ? stock.filter(i=>!i.location)
+    : stock.filter(i=>i.location === filter);
+
+  const rows = filtered.map((i,idx) => {
+    const countId = `st-count-${i.item_id}`;
+    const locId   = `st-loc-${i.item_id}`;
+    return `<tr id="st-row-${i.item_id}">
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;color:#888">${idx+1}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px"><strong>${i.po_id}</strong></td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px">${i.description}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;color:#888;text-align:center">${i.uom}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center">
+        <input id="${locId}" type="text" value="${i.location||''}" placeholder="Add location" style="width:110px;padding:4px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px">
+      </td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;font-weight:600;text-align:center;color:#185FA5">${i.systemQty}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center">
+        <input id="${countId}" type="number" min="0" placeholder="—" style="width:80px;padding:4px 8px;border:1px solid #ddd;border-radius:5px;font-size:13px;text-align:center"
+          oninput="(function(el,sysQty,rowId){
+            const v=parseInt(el.value);
+            const row=document.getElementById(rowId);
+            if(isNaN(v)){row.style.background='';return;}
+            if(v===sysQty){row.style.background='#F0FDF4';}
+            else if(v<sysQty){row.style.background='#FCEBEB';}
+            else{row.style.background='#FEF3C7';}
+          })(this,${i.systemQty},'st-row-${i.item_id}')">
+      </td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:11px;color:#aaa;text-align:center" id="st-disc-${i.item_id}">—</td>
+    </tr>`;
+  });
+
+  return `
+  <div class="no-print" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="section-title" style="margin:0">Enter Count Results</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Location filter: <strong>${filter}</strong> &nbsp;·&nbsp; Leave count blank to accept system quantity</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="appState.activeReport='stocktake';renderTab()">← Back to Count Sheet</button>
+        <button class="btn btn-primary" onclick="submitStocktake()">✓ Submit Count</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;font-size:12px;color:#888">
+      <span style="background:#F0FDF4;padding:3px 10px;border-radius:4px;color:#3B6D11">■ Match</span>
+      <span style="background:#FCEBEB;padding:3px 10px;border-radius:4px;color:#A32D2D">■ Shortage</span>
+      <span style="background:#FEF3C7;padding:3px 10px;border-radius:4px;color:#B45309">■ Surplus</span>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#0F6E56">
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px;width:40px">#</th>
+        <th style="padding:8px 10px;text-align:left;color:white;font-size:11px">PO</th>
+        <th style="padding:8px 10px;text-align:left;color:white;font-size:11px">Description</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px">UOM</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px">Location</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px">System Qty</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px">Count Qty</th>
+        <th style="padding:8px 10px;text-align:center;color:white;font-size:11px">Variance</th>
+      </tr></thead>
+      <tbody>${rows.join('')||'<tr><td colspan="8" style="padding:20px;text-align:center;color:#aaa">No stock on hand</td></tr>'}</tbody>
+    </table>
+  </div>
+  <div style="margin-top:16px;display:flex;justify-content:flex-end">
+    <button class="btn btn-primary" onclick="submitStocktake()">✓ Submit Count</button>
+  </div>`;
+}
+
+async function submitStocktake() {
+  const stock = getStockOnHand();
+  const filter = appState.stocktakeFilter || 'ALL';
+  const filtered = filter === 'ALL' ? stock
+    : filter === 'NO LOCATION' ? stock.filter(i=>!i.location)
+    : stock.filter(i=>i.location === filter);
+
+  const adjustments = [];
+  const locationUpdates = [];
+  let countedItems = 0;
+
+  filtered.forEach(i => {
+    const countEl = document.getElementById(`st-count-${i.item_id}`);
+    const locEl   = document.getElementById(`st-loc-${i.item_id}`);
+    const newLoc  = locEl ? locEl.value.trim() : i.location;
+    const countVal = countEl && countEl.value !== '' ? parseInt(countEl.value) : null;
+
+    if (newLoc !== i.location && newLoc) locationUpdates.push({ item_id:i.item_id, po_id:i.po_id, desc:i.description, location:newLoc });
+    if (countVal !== null) {
+      countedItems++;
+      const variance = countVal - i.systemQty;
+      if (variance !== 0) {
+        adjustments.push({ item_id:i.item_id, po_id:i.po_id, desc:i.description, systemQty:i.systemQty, countQty:countVal, variance, location:newLoc||i.location });
+      }
+    }
+  });
+
+  if (countedItems === 0) { alert('No count quantities entered. Please enter at least one count before submitting.'); return; }
+
+  const confirmed = confirm(`Submit stocktake?\n\n• ${countedItems} items counted\n• ${adjustments.length} adjustment(s) required\n• ${locationUpdates.length} location update(s)\n\nAdjustments will be recorded as transactions.`);
+  if (!confirmed) return;
+
+  const dateStr = today();
+  const user = sessionStorage.getItem('pmms_user') || 'Admin';
+  const errors = [];
+
+  // Save adjustment transactions
+  for (const adj of adjustments) {
+    try {
+      await sheetPost({ action:'transaction', txn:{
+        txn_id: uid(), date: dateStr, type: 'adjustment',
+        po_id: adj.po_id, item_id: adj.item_id, item_desc: adj.desc,
+        qty: adj.variance, location: adj.location,
+        note: `Stocktake adjustment by ${user}. System: ${adj.systemQty}, Count: ${adj.countQty}`
+      }});
+    } catch(e) { errors.push(`Adjustment for ${adj.desc}: ${e.message}`); }
+  }
+
+  // Save location transfers for items where location was added/changed
+  for (const lu of locationUpdates) {
+    try {
+      await sheetPost({ action:'transaction', txn:{
+        txn_id: uid(), date: dateStr, type: 'transfer',
+        po_id: lu.po_id, item_id: lu.item_id, item_desc: lu.desc,
+        qty: 0, location: lu.location,
+        note: `Location updated during stocktake by ${user}`
+      }});
+    } catch(e) { errors.push(`Location update for ${lu.desc}: ${e.message}`); }
+  }
+
+  // Save stocktake summary record
+  try {
+    await sheetPost({ action:'saveStocktake', record:{
+      stocktake_id: uid(), date: dateStr, user,
+      location_filter: filter, items_counted: countedItems,
+      adjustments: adjustments.length, variance_total: adjustments.reduce((a,x)=>a+Math.abs(x.variance),0),
+      detail: JSON.stringify(adjustments)
+    }});
+  } catch(e) { /* Stocktake history failure is non-critical */ }
+
+  await loadData(true);
+  appState.activeReport = 'stocktake_history';
+  renderTab();
+
+  if (errors.length) showAlert(`Stocktake submitted with ${errors.length} error(s): ${errors[0]}`, 'error');
+  else showAlert(`Stocktake complete — ${adjustments.length} adjustment(s) saved, ${countedItems} items counted`);
+}
+
+function renderStocktakeHistory() {
+  if (isReadOnly()) return '<div class="alert alert-error">Stocktake is admin only.</div>';
+  // Show adjustment transactions as stocktake history
+  const adjTxns = [...appState.txns].filter(t=>t.type==='adjustment').sort((a,b)=>b.date.localeCompare(a.date));
+  const rows = adjTxns.map(t=>`<tr>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:12px">${fmtDate(t.date)}</td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:12px"><strong>${t.po_id}</strong></td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">${t.item_desc}</td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:12px;color:#185FA5">${t.location||'—'}</td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;font-weight:600;text-align:center;color:${t.qty>0?'#B45309':t.qty<0?'#A32D2D':'#3B6D11'}">${t.qty>0?'+':''}${t.qty}</td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:11px;color:#888">${t.note||'—'}</td>
+  </tr>`).join('');
+
+  const transferTxns = [...appState.txns].filter(t=>t.type==='transfer').sort((a,b)=>b.date.localeCompare(a.date));
+  const tRows = transferTxns.map(t=>`<tr>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:12px">${fmtDate(t.date)}</td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:12px"><strong>${t.po_id}</strong></td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px">${t.item_desc}</td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:12px;color:#888">${t.from_location||'—'} → <span style="color:#185FA5">${t.location||'—'}</span></td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:13px;font-weight:600;text-align:center">${t.qty||'—'}</td>
+    <td style="padding:8px 10px;border-bottom:0.5px solid #eee;font-size:11px;color:#888">${t.note||'—'}</td>
+  </tr>`).join('');
+
+  return `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="section-title" style="margin:0">Stocktake & Transfer History</div>
+    <button class="btn btn-secondary" onclick="appState.activeReport='stocktake';renderTab()">← Back to Count Sheet</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Inventory Adjustments</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#0F6E56">
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">Date</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">PO</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">Description</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">Location</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:center">Variance</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">Note</th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:#aaa">No adjustments recorded yet</td></tr>'}</tbody>
+    </table>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Stock Transfers</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#185FA5">
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">Date</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">PO</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">Description</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">Movement</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:center">Qty</th>
+        <th style="padding:8px 10px;color:white;font-size:11px;text-align:left">Note</th>
+      </tr></thead>
+      <tbody>${tRows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:#aaa">No transfers recorded yet</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
 function renderWarehouse() {
   const awaiting = appState.pos.flatMap(po=>po.items.map(i=>({...i,po_id:po.po_id}))).filter(i=>i.received>i.putaway);
   const rows=awaiting.map(i=>`<tr>
@@ -884,6 +1352,17 @@ function renderWarehouse() {
       <td style="text-align:center;font-weight:600;color:#0F6E56">${v.putaway}</td>
     </tr>`).join('');
 
+  // Items currently in warehouse (putaway > issued) for transfer
+  const inStore = appState.pos.flatMap(po=>po.items.map(i=>({...i,po_id:po.po_id,supplier:po.supplier}))).filter(i=>i.putaway>i.issued);
+  const putawayTxnsAll = appState.txns.filter(t=>t.type==='putaway');
+  const getLocFor = (itemId) => [...putawayTxnsAll].filter(t=>t.item_id===itemId&&t.location).sort((a,b)=>b.date.localeCompare(a.date))[0]?.location||'—';
+  const storeRows = inStore.map(i=>`<tr>
+    <td><strong>${i.po_id}</strong></td><td>${i.description}</td><td>${i.uom}</td>
+    <td style="color:#185FA5;font-weight:500">${getLocFor(i.item_id)}</td>
+    <td style="text-align:center;font-weight:600;color:#0F6E56">${i.putaway-i.issued}</td>
+    <td>${actionBtn(`<button class="btn btn-secondary btn-sm" onclick="openTransferModal('${i.item_id}','${i.po_id}')">↔ Move</button>`)}</td>
+  </tr>`).join('');
+
   return `
   <div class="grid-3"><div class="metric c-blue"><div class="metric-label">Lines in Goods In</div><div class="metric-val">${awaiting.length}</div></div>
   <div class="metric c-teal"><div class="metric-label">Qty to Put Away</div><div class="metric-val">${awaiting.reduce((a,i)=>a+i.received-i.putaway,0)}</div></div>
@@ -895,6 +1374,15 @@ function renderWarehouse() {
     <div class="card"><div class="card-title">Location Summary</div>
     <table><thead><tr><th>Location</th><th style="text-align:center">Line Items</th><th style="text-align:center">Qty in Store</th></tr></thead>
     <tbody>${locRows||'<tr><td colspan="3"><div class="empty-state">No stock in warehouse yet</div></td></tr>'}</tbody></table></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="card-title" style="margin:0">Stock in Warehouse — Move Between Locations</div>
+      ${actionBtn(`<button class="btn btn-secondary btn-sm" onclick="appState.activeReport='stocktake';appState.tab='reports';renderTab()">📋 Run Stocktake</button>`)}
+    </div>
+    <table><thead><tr><th>PO</th><th>Description</th><th>UOM</th><th>Location</th><th style="text-align:center">Available</th><th></th></tr></thead>
+    <tbody>${storeRows||'<tr><td colspan="6"><div class="empty-state">No stock in warehouse yet</div></td></tr>'}</tbody>
+    </table>
   </div>
   <div class="card"><div class="card-title">Recent Put-Away Transactions</div>
   <table><thead><tr><th>Date</th><th>PO</th><th>Description</th><th>Qty</th><th>Location</th><th>Note</th></tr></thead>
@@ -915,12 +1403,16 @@ function renderIssue() {
 
   const rows=avail.map(i=>{
     const loc = getLocation(i.item_id);
-    return `<tr>
+    const isQuarantined = loc.toLowerCase().includes('quarantine');
+    return `<tr style="${isQuarantined ? 'background:#FEF9F0' : ''}">
       <td><strong>${i.po_id}</strong></td><td>${i.description}</td><td>${i.uom}</td>
-      <td style="color:#185FA5;font-weight:500">${loc}</td>
+      <td style="font-weight:500;${isQuarantined ? 'color:#A32D2D' : 'color:#185FA5'}">${loc}${isQuarantined ? ' 🔒' : ''}</td>
       <td>${i.putaway}</td><td>${i.issued}</td>
       <td style="color:#3B6D11;font-weight:500">${i.putaway-i.issued}</td>
-      <td>${actionBtn(`<button class="btn btn-green btn-sm" onclick="openModal('issue','${i.item_id}','${i.po_id}')">Issue</button>`)}</td>
+      <td>${isQuarantined
+        ? actionBtn(`<button class="btn btn-sm" style="background:#FEF3C7;color:#B45309;border:1px solid #F59E0B;font-size:11px" onclick="openQuarantineRelease('${i.item_id}','${i.po_id}')">🔓 Release</button>`)
+        : actionBtn(`<button class="btn btn-green btn-sm" onclick="openModal('issue','${i.item_id}','${i.po_id}')">Issue</button>`)
+      }</td>
     </tr>`;
   }).join('');
 
@@ -928,23 +1420,27 @@ function renderIssue() {
   const issLocMap = {};
   avail.forEach(i => {
     const loc = getLocation(i.item_id);
-    if (!issLocMap[loc]) issLocMap[loc] = { lines:0, qty:0 };
+    const isQuarantined = loc.toLowerCase().includes('quarantine');
+    if (!issLocMap[loc]) issLocMap[loc] = { lines:0, qty:0, quarantined: isQuarantined };
     issLocMap[loc].lines++;
     issLocMap[loc].qty += i.putaway - i.issued;
   });
   const issLocRows = Object.entries(issLocMap)
     .sort((a,b)=>a[0].localeCompare(b[0]))
-    .map(([loc,v])=>`<tr>
-      <td style="font-weight:500;color:#185FA5">${loc}</td>
+    .map(([loc,v])=>`<tr style="${v.quarantined ? 'background:#FEF9F0' : ''}">
+      <td style="font-weight:500;${v.quarantined ? 'color:#A32D2D' : 'color:#185FA5'}">${loc}${v.quarantined ? ' 🔒' : ''}</td>
       <td style="text-align:center">${v.lines}</td>
-      <td style="text-align:center;font-weight:600;color:#3B6D11">${v.qty}</td>
+      <td style="text-align:center;font-weight:600;${v.quarantined ? 'color:#A32D2D' : 'color:#3B6D11'}">${v.qty}${v.quarantined ? ' (held)' : ''}</td>
     </tr>`).join('');
 
+  const availForIssue = avail.filter(i => !getLocation(i.item_id).toLowerCase().includes('quarantine'));
+
+  const quarantinedCount = avail.length - availForIssue.length;
   const recent=[...appState.txns].filter(t=>t.type==='issued').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
   const tRows=recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td><strong>${t.po_id}</strong></td><td>${t.item_desc}</td><td>${t.qty}</td><td>${t.location||'--'}</td><td>${t.contractor||'--'}</td><td>${t.note||'--'}</td></tr>`).join('');
   return `
-  <div class="grid-3"><div class="metric c-green"><div class="metric-label">Lines Available</div><div class="metric-val">${avail.length}</div></div>
-  <div class="metric c-teal"><div class="metric-label">Qty Available</div><div class="metric-val">${avail.reduce((a,i)=>a+i.putaway-i.issued,0)}</div></div>
+  <div class="grid-3"><div class="metric c-green"><div class="metric-label">Lines Available</div><div class="metric-val">${availForIssue.length}</div><div class="metric-sub">${quarantinedCount > 0 ? `${quarantinedCount} in quarantine` : 'ready to issue'}</div></div>
+  <div class="metric c-teal"><div class="metric-label">Qty Available</div><div class="metric-val">${availForIssue.reduce((a,i)=>a+i.putaway-i.issued,0)}</div></div>
   <div class="metric c-amber"><div class="metric-label">Issues Today</div><div class="metric-val">${appState.txns.filter(t=>t.type==='issued'&&t.date===today()).length}</div></div></div>
   <div class="grid-2">
     <div class="card"><div class="section-title" style="margin-bottom:14px">Stock Available for Issue</div>
@@ -1107,17 +1603,25 @@ function openModal(type, itemId='', poId='') {
     const locPh=type==='receive'?'e.g. GI-A01':type==='putaway'?'e.g. WH-R3-B2':'e.g. WH-R3-B2';
     const prefillLoc = type==='issue' ? (appState.txns.filter(t=>t.type==='putaway'&&t.item_id===item.item_id&&t.location).sort((a,b)=>b.date.localeCompare(a.date))[0]?.location||'') : '';
     const contractorRow=type==='issue'?`<div class="form-row"><div class="form-group"><label>Contractor</label><input id="m-contractor" placeholder="Contractor / company name"></div><div class="form-group"><label>Work Area</label><input id="m-area" placeholder="e.g. Hall B Level 2"></div></div>`:'';
+
+    // For receive: allow over-delivery but warn. Remove hard max cap on qty input.
+    const isReceive = type === 'receive';
+    const overDeliveryWarning = isReceive ? `<div id="over-delivery-warning" style="display:none;background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#92400E">
+      ⚠️ <strong>Over-delivery:</strong> Quantity exceeds the ordered amount. Confirm only if authorised to accept the additional stock.
+    </div>` : '';
+
     mc.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
       <div class="modal-header"><div class="modal-title">${titles[type]}</div><button class="close-btn" onclick="closeModal()">x</button></div>
       <div style="background:#f7f5f0;border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px">
         <div style="font-weight:500;margin-bottom:4px">${item.description}</div>
         <div style="color:#888">PO: <strong>${po.po_id}</strong> &nbsp;.&nbsp; ${po.supplier} &nbsp;.&nbsp; UOM: ${item.uom}</div>
         <div style="color:#888;margin-top:4px">Ordered: ${item.ordered} &nbsp;.&nbsp; Received: ${item.received} &nbsp;.&nbsp; Put Away: ${item.putaway} &nbsp;.&nbsp; Issued: ${item.issued}</div>
-        <div style="color:#BA7517;font-weight:500;margin-top:6px">Available to ${type}: <strong>${max} ${item.uom}</strong></div>
+        <div style="color:#BA7517;font-weight:500;margin-top:6px">Available to ${type}: <strong>${isReceive ? item.ordered - item.received : max} ${item.uom}</strong>${isReceive ? ` &nbsp;<span style="color:#888;font-weight:400;font-size:11px">(over-delivery accepted)</span>` : ''}</div>
       </div>
+      ${overDeliveryWarning}
       <div class="form-row">
         <div class="form-group"><label>Date</label><input id="m-date" type="date" value="${today()}"></div>
-        <div class="form-group"><label>Quantity (max ${max})</label><input id="m-qty" type="number" min="1" max="${max}" value="${max}"></div>
+        <div class="form-group"><label>Quantity${isReceive ? '' : ` (max ${max})`}</label><input id="m-qty" type="number" min="1" ${isReceive ? '' : `max="${max}"`} value="${isReceive ? item.ordered - item.received : max}" ${isReceive ? `oninput="const ow=document.getElementById('over-delivery-warning');if(ow)ow.style.display=Number(this.value)>${item.ordered - item.received}?'block':'none'"` : ''}></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>${locLabel}</label><input id="m-loc" placeholder="${locPh}" value="${prefillLoc}"></div>
@@ -1127,7 +1631,7 @@ function openModal(type, itemId='', poId='') {
       <div class="form-group" style="margin-bottom:16px"><label>Notes</label><input id="m-note" placeholder="Optional notes"></div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" id="txn-btn" onclick="saveTransaction('${type}','${item.item_id}','${po.po_id}','${item.description}')">Confirm ${type==='receive'?'Receipt':type==='putaway'?'Put-Away':'Issue'}</button>
+        <button class="btn btn-primary" id="txn-btn" onclick="saveTransaction('${type}','${item.item_id}','${po.po_id}','${item.description}',${isReceive ? 999999 : max})">Confirm ${type==='receive'?'Receipt':type==='putaway'?'Put-Away':'Issue'}</button>
       </div>
     </div></div>`;
   }
@@ -1387,17 +1891,21 @@ async function importCSV() {
   const btn = document.getElementById('csv-import-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner" style="border-top-color:white;width:14px;height:14px;border-width:2px;display:inline-block"></span> Importing...';
-  let imported = 0, failed = 0;
-  for (var _pi=0; _pi<parsedCSVPos.length; _pi++) { var po = parsedCSVPos[_pi];
-    try {
-      const res = await sheetPost({ action:'addPO', po });
-      if (res.ok) imported++; else { failed++; console.warn('Failed:', po.po_id, res.error); }
-    } catch(e) { failed++; }
+  try {
+    const res = await sheetPost({ action:'addPOs', pos: parsedCSVPos });
+    closeModal();
+    await loadData(true);
+    if (res.ok) {
+      const skipped = res.skipped && res.skipped.length ? ` (${res.skipped.length} skipped — already exist)` : '';
+      showAlert(`${res.imported} PO${res.imported !== 1 ? 's' : ''} imported successfully${skipped}`);
+    } else {
+      showAlert('Import failed: ' + (res.error || 'Unknown error'), 'error');
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Import POs';
+    showAlert('Import error: ' + e.message, 'error');
   }
-  closeModal();
-  await loadData(true);
-  if (failed === 0) showAlert(`${imported} PO${imported!==1?'s':''} imported successfully`);
-  else showAlert(`${imported} imported, ${failed} failed -- check console for details`, 'error');
 }
 
 function closeModal() {
@@ -1443,18 +1951,16 @@ async function savePO() {
   }
 }
 
-async function saveTransaction(type, itemId, poId, itemDesc) {
+async function saveTransaction(type, itemId, poId, itemDesc, max) {
   const qty  = parseInt(document.getElementById('m-qty')?.value)||0;
   const date = document.getElementById('m-date')?.value||today();
   const loc  = document.getElementById('m-loc')?.value||'';
   const note = document.getElementById('m-note')?.value||'';
   const contractor = document.getElementById('m-contractor')?.value||'';
   const work_area  = document.getElementById('m-area')?.value||'';
-  const po   = appState.pos.find(p=>p.po_id===poId);
-  const item = po?.items.find(i=>i.item_id===itemId);
-  if (!item) return;
-  const max = type==='receive'?item.ordered-item.received:type==='putaway'?item.received-item.putaway:item.putaway-item.issued;
-  if (qty<=0||qty>max) { alert(`Quantity must be between 1 and ${max}`); return; }
+  if (!max || max <= 0) { alert('No quantity available to ' + type); return; }
+  if (qty <= 0) { alert('Quantity must be at least 1'); return; }
+  if (max < 999999 && qty > max) { alert(`Quantity must be between 1 and ${max}`); return; }
   const btn = document.getElementById('txn-btn');
   btn.disabled=true; btn.innerHTML='<span class="spinner" style="border-top-color:white;width:14px;height:14px;border-width:2px;"></span> Saving...';
   try {
@@ -1527,6 +2033,7 @@ function renderReports() {
     {id:'suppliers',  label:'Supplier Summary'},
     {id:'items',      label:'Item Schedule'},
     {id:'dashboard_charts', label:'Charts'},
+    {id:'stocktake',  label:'📋 Stocktake'},
   ];
   var tabHtml = tabs.map(function(t) {
     var active = t.id === activeReport;
@@ -2326,6 +2833,21 @@ function renderReports() {
         ${weekBars}
       </div>
     </div>`;
+  }
+
+  else if (activeReport === 'stocktake') {
+    reportTitle = 'Stocktake / Inventory Audit';
+    reportHtml = renderStocktakeSheet();
+  }
+
+  else if (activeReport === 'stocktake_entry') {
+    reportTitle = 'Enter Count Results';
+    reportHtml = renderStocktakeEntry();
+  }
+
+  else if (activeReport === 'stocktake_history') {
+    reportTitle = 'Stocktake & Transfer History';
+    reportHtml = renderStocktakeHistory();
   }
 
   return `
