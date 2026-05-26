@@ -1127,7 +1127,7 @@ function openModal(type, itemId='', poId='') {
       <div class="form-group" style="margin-bottom:16px"><label>Notes</label><input id="m-note" placeholder="Optional notes"></div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" id="txn-btn" onclick="saveTransaction('${type}','${item.item_id}','${po.po_id}','${item.description}')">Confirm ${type==='receive'?'Receipt':type==='putaway'?'Put-Away':'Issue'}</button>
+        <button class="btn btn-primary" id="txn-btn" onclick="saveTransaction('${type}','${item.item_id}','${po.po_id}','${item.description}',${max})">Confirm ${type==='receive'?'Receipt':type==='putaway'?'Put-Away':'Issue'}</button>
       </div>
     </div></div>`;
   }
@@ -1387,17 +1387,21 @@ async function importCSV() {
   const btn = document.getElementById('csv-import-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner" style="border-top-color:white;width:14px;height:14px;border-width:2px;display:inline-block"></span> Importing...';
-  let imported = 0, failed = 0;
-  for (var _pi=0; _pi<parsedCSVPos.length; _pi++) { var po = parsedCSVPos[_pi];
-    try {
-      const res = await sheetPost({ action:'addPO', po });
-      if (res.ok) imported++; else { failed++; console.warn('Failed:', po.po_id, res.error); }
-    } catch(e) { failed++; }
+  try {
+    const res = await sheetPost({ action:'addPOs', pos: parsedCSVPos });
+    closeModal();
+    await loadData(true);
+    if (res.ok) {
+      const skipped = res.skipped && res.skipped.length ? ` (${res.skipped.length} skipped — already exist)` : '';
+      showAlert(`${res.imported} PO${res.imported !== 1 ? 's' : ''} imported successfully${skipped}`);
+    } else {
+      showAlert('Import failed: ' + (res.error || 'Unknown error'), 'error');
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Import POs';
+    showAlert('Import error: ' + e.message, 'error');
   }
-  closeModal();
-  await loadData(true);
-  if (failed === 0) showAlert(`${imported} PO${imported!==1?'s':''} imported successfully`);
-  else showAlert(`${imported} imported, ${failed} failed -- check console for details`, 'error');
 }
 
 function closeModal() {
@@ -1443,17 +1447,14 @@ async function savePO() {
   }
 }
 
-async function saveTransaction(type, itemId, poId, itemDesc) {
+async function saveTransaction(type, itemId, poId, itemDesc, max) {
   const qty  = parseInt(document.getElementById('m-qty')?.value)||0;
   const date = document.getElementById('m-date')?.value||today();
   const loc  = document.getElementById('m-loc')?.value||'';
   const note = document.getElementById('m-note')?.value||'';
   const contractor = document.getElementById('m-contractor')?.value||'';
   const work_area  = document.getElementById('m-area')?.value||'';
-  const po   = appState.pos.find(p=>p.po_id===poId);
-  const item = po?.items.find(i=>i.item_id===itemId);
-  if (!item) return;
-  const max = type==='receive'?item.ordered-item.received:type==='putaway'?item.received-item.putaway:item.putaway-item.issued;
+  if (!max || max <= 0) { alert('No quantity available to ' + type); return; }
   if (qty<=0||qty>max) { alert(`Quantity must be between 1 and ${max}`); return; }
   const btn = document.getElementById('txn-btn');
   btn.disabled=true; btn.innerHTML='<span class="spinner" style="border-top-color:white;width:14px;height:14px;border-width:2px;"></span> Saving...';
